@@ -1,5 +1,8 @@
 import { v4 as uuidv4 } from 'uuid';
 
+// Get API base URL from environment
+const API_BASE = (import.meta as any).env?.VITE_API_URL || '/api';
+
 interface SessionData {
   sessionId: string;
   tableNumber: number;
@@ -39,7 +42,7 @@ class SessionService {
   }
 
   async createSession(tableNumber: number): Promise<SessionData> {
-    const response = await fetch('/api/sessions', {
+    const response = await fetch(`${API_BASE}/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -65,7 +68,7 @@ class SessionService {
 
   async endSession(sessionId: string): Promise<void> {
     try {
-      await fetch(`/api/sessions/${sessionId}`, {
+      await fetch(`${API_BASE}/sessions/${sessionId}`, {
         method: 'DELETE'
       });
       sessionStorage.removeItem('currentSession');
@@ -76,7 +79,7 @@ class SessionService {
 
   async heartbeat(sessionId: string): Promise<void> {
     try {
-      await fetch(`/api/sessions/${sessionId}/heartbeat`, {
+      await fetch(`${API_BASE}/sessions/${sessionId}/heartbeat`, {
         method: 'POST'
       });
     } catch (error) {
