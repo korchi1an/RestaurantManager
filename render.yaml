@@ -21,6 +21,8 @@ services:
         generateValue: true
       - key: CORS_ORIGIN
         value: https://restaurant-frontend-85q6.onrender.com
+      - key: FRONTEND_URL
+        value: https://restaurant-frontend-85q6.onrender.com
 
   - type: web
     name: restaurant-frontend
