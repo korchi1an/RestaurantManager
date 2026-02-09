@@ -2,11 +2,10 @@ services:
   # Backend API
   - type: web
     name: restaurant-backend
-    runtime: node
+    env: node
     plan: free
-    rootDirectory: ./backend
-    buildCommand: npm install && npm run build
-    startCommand: npm start
+    buildCommand: npm install --prefix backend && npm run build --prefix backend
+    startCommand: npm start --prefix backend
     envVars:
       - key: NODE_ENV
         value: production
@@ -25,11 +24,10 @@ services:
   # Frontend Static Site
   - type: web
     name: restaurant-frontend
-    runtime: static
+    env: static
     plan: free
-    rootDirectory: ./frontend
-    buildCommand: npm install && npm run build
-    staticPublishPath: ./dist
+    buildCommand: npm install --prefix frontend && npm run build --prefix frontend
+    staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_URL
         sync: false
