@@ -1,0 +1,244 @@
+.table-assignments-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.assignments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.assignments-header h1 {
+  font-size: 28px;
+  color: #333;
+}
+
+.refresh-btn {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.refresh-btn:hover {
+  background-color: #45a049;
+}
+
+.refresh-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.assignments-content {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 30px;
+}
+
+/* Waiters Section */
+.waiters-section h2 {
+  font-size: 20px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.waiters-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.waiter-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: box-shadow 0.2s;
+}
+
+.waiter-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.waiter-info h3 {
+  font-size: 16px;
+  margin: 0 0 4px 0;
+  color: #333;
+}
+
+.waiter-username {
+  font-size: 13px;
+  color: #666;
+}
+
+.waiter-stats {
+  display: flex;
+  align-items: center;
+}
+
+.table-count {
+  background-color: #2196F3;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* Tables Section */
+.tables-section h2 {
+  font-size: 20px;
+  margin-bottom: 15px;
+  color: #333;
+}
+
+.tables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 15px;
+}
+
+.table-card {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  transition: box-shadow 0.2s;
+}
+
+.table-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.table-header h3 {
+  font-size: 18px;
+  margin: 0;
+  color: #333;
+}
+
+.table-capacity {
+  font-size: 13px;
+  color: #666;
+  background-color: #f5f5f5;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.table-assignment {
+  min-height: 40px;
+}
+
+.assigned-waiter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.waiter-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.assigned-label {
+  font-size: 12px;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.waiter-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #4CAF50;
+}
+
+.unassign-btn {
+  padding: 6px 12px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background-color 0.2s;
+}
+
+.unassign-btn:hover {
+  background-color: #da190b;
+}
+
+.unassign-btn:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.assign-controls {
+  width: 100%;
+}
+
+.waiter-select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  background-color: white;
+}
+
+.waiter-select:hover {
+  border-color: #4CAF50;
+}
+
+.waiter-select:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.no-data {
+  color: #999;
+  font-style: italic;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .assignments-content {
+    grid-template-columns: 1fr;
+  }
+
+  .waiters-section {
+    order: 2;
+  }
+
+  .tables-section {
+    order: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .tables-grid {
+    grid-template-columns: 1fr;
+  }
+}
