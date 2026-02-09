@@ -4,8 +4,9 @@ services:
     name: restaurant-backend
     runtime: node
     plan: free
-    buildCommand: npm install --prefix backend && npm run build --prefix backend
-    startCommand: npm start --prefix backend
+    rootDir: ./backend
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -24,8 +25,9 @@ services:
   - type: web
     name: restaurant-frontend
     runtime: static
-    buildCommand: npm install --prefix frontend && npm run build --prefix frontend
-    staticPublishPath: frontend/dist
+    rootDir: ./frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
     routes:
       - type: rewrite
         source: /*
