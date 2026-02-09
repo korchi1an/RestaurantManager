@@ -22,7 +22,7 @@ services:
     healthCheckPath: /api/health
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: restaurant-frontend
     buildCommand: npm install --prefix frontend && npm run build --prefix frontend
     staticPublishPath: frontend/dist
