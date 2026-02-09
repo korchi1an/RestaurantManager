@@ -27,7 +27,7 @@ const QRCodes: React.FC = () => {
         api.getTableQRCode(table.table_number)
       );
       
-      const codes = await Promise.all(qrCodePromises);
+      const codes = await Promise.all(qrCodePromises) as QRCodeData[];
       setQrCodes(codes);
     } catch (error) {
       console.error('Error loading QR codes:', error);
