@@ -1,9 +1,10 @@
 services:
-  # Backend API
   - type: web
     name: restaurant-backend
     runtime: node
     plan: free
+    repo: https://github.com/korchi1an/RestaurantManager
+    branch: main
     rootDir: ./backend
     buildCommand: npm install && npm run build
     startCommand: npm start
@@ -21,10 +22,11 @@ services:
       - key: CORS_ORIGIN
         sync: false
 
-  # Frontend Static Site
   - type: web
     name: restaurant-frontend
     runtime: static
+    repo: https://github.com/korchi1an/RestaurantManager
+    branch: main
     rootDir: ./frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
