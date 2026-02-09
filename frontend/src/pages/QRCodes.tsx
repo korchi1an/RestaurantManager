@@ -24,8 +24,7 @@ const QRCodes: React.FC = () => {
       
       // Generate QR codes for all tables
       const qrCodePromises = tables.map((table: Table) =>
-        fetch(`http://localhost:5000/api/tables/${table.table_number}/qrcode`)
-          .then(res => res.json())
+        api.getTableQRCode(table.table_number)
       );
       
       const codes = await Promise.all(qrCodePromises);

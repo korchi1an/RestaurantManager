@@ -205,4 +205,8 @@ export const api = {
   async getTables() {
     return request('/tables');
   },
+
+  async getTableQRCode(tableNumber: number) {
+    return request(`/tables/${tableNumber}/qrcode`);
+  },
 };
