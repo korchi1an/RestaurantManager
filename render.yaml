@@ -20,7 +20,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        sync: false
+        value: https://restaurant-frontend.onrender.com
 
   - type: web
     name: restaurant-frontend
@@ -30,6 +30,9 @@ services:
     rootDir: ./frontend
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://restaurant-backend.onrender.com
     routes:
       - type: rewrite
         source: /*
