@@ -20,7 +20,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        value: https://restaurant-frontend.onrender.com
+        value: https://restaurant-frontend-85q6.onrender.com
 
   - type: web
     name: restaurant-frontend
@@ -32,7 +32,7 @@ services:
     staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
-        value: https://restaurant-backend.onrender.com/api
+        value: https://restaurant-backend-85q6.onrender.com/api
     routes:
       - type: rewrite
         source: /*
