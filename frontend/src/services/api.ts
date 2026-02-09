@@ -112,10 +112,16 @@ async function request<T>(
     const contentType = response.headers.get('content-type');
     let data: any;
     
-    if (contentType?.includes('application/json')) {
-      data = await response.json();
-    } else {
-      data = await response.text();
+    try {
+      if (contentType?.includes('application/json')) {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : null;
+      } else {
+        data = await response.text();
+      }
+    } catch (parseError) {
+      logger.error('Failed to parse response', parseError);
+      throw new ApiError('Invalid server response', response.status);
     }
 
     // Handle errors
