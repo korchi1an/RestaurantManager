@@ -3,7 +3,6 @@ services:
   - type: web
     name: restaurant-backend
     runtime: node
-    region: oregon
     plan: free
     buildCommand: cd backend && npm install && npm run build
     startCommand: cd backend && npm start
@@ -13,24 +12,19 @@ services:
       - key: PORT
         value: 5000
       - key: DATABASE_PATH
-        value: /opt/render/project/data/restaurant.db
+        value: ./restaurant.db
       - key: LOG_LEVEL
         value: info
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
         sync: false
-    disk:
-      name: database
-      mountPath: /opt/render/project/data
-      sizeGB: 1
-    healthCheckPath: /health
+    healthCheckPath: /api/health
 
   # Frontend Static Site
   - type: web
     name: restaurant-frontend
     runtime: static
-    region: oregon
     buildCommand: cd frontend && npm install && npm run build
     staticPublishPath: frontend/dist
     envVars:
