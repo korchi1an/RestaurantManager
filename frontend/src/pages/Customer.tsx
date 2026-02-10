@@ -218,14 +218,18 @@ const Customer: React.FC = () => {
 
     setLoading(true);
     try {
+      console.log('📋 [CUSTOMER] Starting order submission. Cart:', cart.length, 'items');
+      
       // Create session if not exists
       let currentSessionId = sessionId;
       if (!currentSessionId) {
-        console.log('Creating new session for table:', tableNumber);
+        console.log('🔄 [CUSTOMER] No session exists. Creating new session for table:', tableNumber);
         const session = await sessionService.createSession(tableNumber);
         currentSessionId = session.sessionId;
         setSessionId(currentSessionId);
-        console.log('Session created:', currentSessionId);
+        console.log('✅ [CUSTOMER] Session created:', currentSessionId);
+      } else {
+        console.log('✅ [CUSTOMER] Using existing session:', currentSessionId);
       }
 
       const orderData = {
@@ -237,9 +241,11 @@ const Customer: React.FC = () => {
         }))
       };
 
-      console.log('Submitting order:', orderData);
+      console.log('🚀 [CUSTOMER] Submitting order:', orderData);
+      console.log('🚀 [CUSTOMER] API Base URL:', (import.meta as any).env?.VITE_API_URL || '/api');
+      
       const order = await api.createOrder(orderData);
-      console.log('Order created:', order);
+      console.log('✅ [CUSTOMER] Order created successfully:', order);
       
       // Add to session orders list at the top
       setSessionOrders(prev => [order, ...prev]);
@@ -247,11 +253,19 @@ const Customer: React.FC = () => {
       // Clear cart to allow placing another order
       setCart([]);
       
+      alert('✅ Order placed successfully!');
+      
       // Keep session active for additional orders
     } catch (error: any) {
-      console.error('Error submitting order:', error);
+      console.error('❌ [CUSTOMER] Error submitting order:', error);
+      console.error('❌ [CUSTOMER] Error details:', {
+        message: error.message,
+        statusCode: error.statusCode,
+        details: error.details,
+        stack: error.stack
+      });
       const errorMessage = error.response?.data?.error || error.message || 'Failed to submit order';
-      alert(errorMessage);
+      alert('❌ Order failed: ' + errorMessage);
     } finally {
       setLoading(false);
     }
