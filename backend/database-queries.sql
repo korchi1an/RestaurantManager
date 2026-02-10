@@ -11,10 +11,15 @@ SELECT * FROM menu_items ORDER BY category, name;
 -- View all tables
 SELECT * FROM tables ORDER BY table_number;
 
--- View all users (staff)
-SELECT id, username, role, full_name, created_at, last_login 
-FROM users 
+-- View all employees (kitchen, waiters, admin)
+SELECT id, username, role, created_at, last_login 
+FROM employees 
 ORDER BY role, username;
+
+-- View all customers
+SELECT id, email, name, created_at, last_login 
+FROM customers 
+ORDER BY created_at DESC;
 
 -- View all orders (most recent first)
 SELECT * FROM orders ORDER BY created_at DESC LIMIT 20;
@@ -50,10 +55,10 @@ SELECT
     t.table_number,
     t.capacity,
     t.status,
-    u.username as waiter_username,
-    u.full_name as waiter_name
+    e.username as waiter_username,
+    e.username as waiter_name
 FROM tables t
-LEFT JOIN users u ON t.waiter_id = u.id
+LEFT JOIN employees e ON t.waiter_id = e.id
 ORDER BY t.table_number;
 
 -- Active sessions with order counts
@@ -159,7 +164,9 @@ SELECT
 UNION ALL
 SELECT 'tables', COUNT(*) FROM tables
 UNION ALL
-SELECT 'users', COUNT(*) FROM users
+SELECT 'employees', COUNT(*) FROM employees
+UNION ALL
+SELECT 'customers', COUNT(*) FROM customers
 UNION ALL
 SELECT 'orders', COUNT(*) FROM orders
 UNION ALL

@@ -14,10 +14,10 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         t.capacity,
         t.status,
         t.waiter_id,
-        u.username as waiter_username,
-        u.full_name as waiter_name
+        e.username as waiter_username,
+        e.username as waiter_name
       FROM tables t
-      LEFT JOIN users u ON t.waiter_id = u.id
+      LEFT JOIN employees e ON t.waiter_id = e.id
       ORDER BY t.table_number
     `);
 
@@ -66,7 +66,7 @@ router.patch('/:tableId/assign', async (req: AuthRequest, res: Response) => {
 
     // Verify waiter exists and has correct role
     const waiterResult = await pool.query(`
-      SELECT id, role FROM users WHERE id = $1
+      SELECT id, role FROM employees WHERE id = $1
     `, [waiterId]);
 
     if (waiterResult.rows.length === 0) {
@@ -98,10 +98,10 @@ router.patch('/:tableId/assign', async (req: AuthRequest, res: Response) => {
         t.capacity,
         t.status,
         t.waiter_id,
-        u.username as waiter_username,
-        u.full_name as waiter_name
+        e.username as waiter_username,
+        e.username as waiter_name
       FROM tables t
-      LEFT JOIN users u ON t.waiter_id = u.id
+      LEFT JOIN employees e ON t.waiter_id = e.id
       WHERE t.id = $1
     `, [tableId]);
 
@@ -153,11 +153,11 @@ router.get('/waiters', async (req: AuthRequest, res: Response) => {
       SELECT 
         id,
         username,
-        full_name,
+        username as full_name,
         role
-      FROM users
+      FROM employees
       WHERE role = 'waiter'
-      ORDER BY full_name
+      ORDER BY username
     `);
 
     res.json(result.rows);

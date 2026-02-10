@@ -21,15 +21,25 @@ const initDb = async () => {
   const client = await pool.connect();
   
   try {
-    // Users Table for Kitchen and Waiter authentication (must be created first due to FK in tables)
+    // Employees Table for Kitchen, Waiter, and Admin authentication
     await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
+      CREATE TABLE IF NOT EXISTS employees (
         id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE,
-        email VARCHAR(255) UNIQUE,
+        username VARCHAR(255) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
-        role VARCHAR(50) NOT NULL CHECK(role IN ('kitchen', 'waiter', 'admin', 'customer')),
-        full_name VARCHAR(255),
+        role VARCHAR(50) NOT NULL CHECK(role IN ('kitchen', 'waiter', 'admin')),
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+      )
+    `);
+
+    // Customers Table for customer authentication
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS customers (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        name VARCHAR(255) NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP
       )
@@ -54,7 +64,7 @@ const initDb = async () => {
         capacity INTEGER NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'Available',
         waiter_id INTEGER,
-        FOREIGN KEY (waiter_id) REFERENCES users(id) ON DELETE SET NULL
+        FOREIGN KEY (waiter_id) REFERENCES employees(id) ON DELETE SET NULL
       )
     `);
 
@@ -173,32 +183,32 @@ const initDb = async () => {
       console.log('✓ Seeded tables');
     }
 
-    // Insert default users if empty (for testing)
-    const userCountResult = await client.query('SELECT COUNT(*) as count FROM users');
-    const userCount = parseInt(userCountResult.rows[0].count);
+    // Insert default employees if empty (for testing)
+    const employeeCountResult = await client.query('SELECT COUNT(*) as count FROM employees');
+    const employeeCount = parseInt(employeeCountResult.rows[0].count);
     
-    if (userCount === 0) {
+    if (employeeCount === 0) {
       // Create default test accounts with temporary hashing (matching auth.ts temporary implementation)
       // Note: In production, use real bcrypt after npm install!
-      const users = [
-        ['kitchen', 'temp_hashed_kitchen123', 'kitchen', 'Kitchen Staff'],
-        ['waiter1', 'temp_hashed_waiter123', 'waiter', 'Waiter One'],
-        ['waiter2', 'temp_hashed_waiter123', 'waiter', 'Waiter Two'],
-        ['admin', 'temp_hashed_admin123', 'admin', 'Administrator']
+      const employees = [
+        ['Chef', 'temp_hashed_kitchen123', 'kitchen'],
+        ['Ana', 'temp_hashed_waiter123', 'waiter'],
+        ['Mihai', 'temp_hashed_waiter123', 'waiter'],
+        ['Admin', 'temp_hashed_admin123', 'admin']
       ];
 
-      for (const user of users) {
+      for (const employee of employees) {
         await client.query(
-          `INSERT INTO users (username, password_hash, role, full_name, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)`,
-          user
+          `INSERT INTO employees (username, password_hash, role, created_at) VALUES ($1, $2, $3, CURRENT_TIMESTAMP)`,
+          employee
         );
       }
 
-      console.log('✓ Seeded default users:');
-      console.log('  - kitchen / kitchen123 (Kitchen Staff)');
-      console.log('  - waiter1 / waiter123 (Waiter One)');
-      console.log('  - waiter2 / waiter123 (Waiter Two)');
-      console.log('  - admin / admin123 (Administrator)');
+      console.log('✓ Seeded default employees:');
+      console.log('  - Chef / kitchen123 (Kitchen)');
+      console.log('  - Ana / waiter123 (Waiter)');
+      console.log('  - Mihai / waiter123 (Waiter)');
+      console.log('  - Admin / admin123 (Administrator)');
       console.log('  ⚠️  Change these passwords in production!');
     }
 

@@ -34,10 +34,10 @@ const jwt = {
   }
 };
 
-// Register new user (for kitchen/waiter staff only)
+// Register new employee (for kitchen/waiter/admin staff only)
 router.post('/register', async (req: Request, res: Response) => {
   try {
-    const { username, password, role, full_name } = req.body;
+    const { username, password, role } = req.body;
     
     // Validation
     if (!username || !password || !role) {
@@ -53,7 +53,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Check if username exists
-    const existingUserResult = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    const existingUserResult = await pool.query('SELECT id FROM employees WHERE username = $1', [username]);
     if (existingUserResult.rows.length > 0) {
       return res.status(400).json({ error: 'Username already exists' });
     }
@@ -61,12 +61,12 @@ router.post('/register', async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user
+    // Insert employee
     const result = await pool.query(`
-      INSERT INTO users (username, password_hash, role, full_name, created_at)
-      VALUES ($1, $2, $3, $4, NOW())
+      INSERT INTO employees (username, password_hash, role, created_at)
+      VALUES ($1, $2, $3, NOW())
       RETURNING id
-    `, [username, hashedPassword, role, full_name || username]);
+    `, [username, hashedPassword, role]);
 
     const userId = result.rows[0].id;
 
@@ -82,13 +82,12 @@ router.post('/register', async (req: Request, res: Response) => {
       user: { 
         id: userId, 
         username, 
-        role,
-        full_name: full_name || username
+        role
       } 
     });
   } catch (error: any) {
     console.error('Registration error:', error);
-    res.status(500).json({ error: 'Failed to create user' });
+    res.status(500).json({ error: 'Failed to create employee' });
   }
 });
 
@@ -98,8 +97,8 @@ router.post('/register-customer', async (req: Request, res: Response) => {
     const { email, password, full_name } = req.body;
     
     // Validation
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!email || !password || !full_name) {
+      return res.status(400).json({ error: 'Email, password, and name are required' });
     }
 
     if (password.length < 6) {
@@ -113,7 +112,7 @@ router.post('/register-customer', async (req: Request, res: Response) => {
     }
 
     // Check if email exists
-    const existingUserResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    const existingUserResult = await pool.query('SELECT id FROM customers WHERE email = $1', [email]);
     if (existingUserResult.rows.length > 0) {
       return res.status(400).json({ error: 'Email already registered' });
     }
@@ -121,18 +120,18 @@ router.post('/register-customer', async (req: Request, res: Response) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user with customer role
+    // Insert customer
     const result = await pool.query(`
-      INSERT INTO users (email, password_hash, role, full_name, created_at)
-      VALUES ($1, $2, 'customer', $3, NOW())
+      INSERT INTO customers (email, password_hash, name, created_at)
+      VALUES ($1, $2, $3, NOW())
       RETURNING id
-    `, [email, hashedPassword, full_name || email]);
+    `, [email, hashedPassword, full_name]);
 
     const userId = result.rows[0].id;
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: userId, userId, email, role: 'customer' },
+      { id: userId, userId, email, role: 'customer', username: full_name },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -142,8 +141,8 @@ router.post('/register-customer', async (req: Request, res: Response) => {
       user: { 
         id: userId, 
         email, 
-        role: 'customer',
-        full_name: full_name || email
+        username: full_name,
+        role: 'customer'
       } 
     });
   } catch (error: any) {
@@ -156,22 +155,42 @@ router.post('/register-customer', async (req: Request, res: Response) => {
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { username, email, password } = req.body;
-    const loginIdentifier = email || username;
 
-    if (!loginIdentifier || !password) {
-      return res.status(400).json({ error: 'Email/username and password are required' });
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
     }
 
-    // Get user from database - try both email and username
-    const result = await pool.query(`
-      SELECT * FROM users WHERE email = $1 OR username = $1
-    `, [loginIdentifier]);
+    let user: any = null;
+    let isEmployee = false;
 
-    if (result.rows.length === 0) {
+    // Try employee login (using username)
+    if (username) {
+      const result = await pool.query(`
+        SELECT * FROM employees WHERE username = $1
+      `, [username]);
+      
+      if (result.rows.length > 0) {
+        user = result.rows[0];
+        isEmployee = true;
+      }
+    }
+
+    // Try customer login (using email)
+    if (!user && email) {
+      const result = await pool.query(`
+        SELECT * FROM customers WHERE email = $1
+      `, [email]);
+      
+      if (result.rows.length > 0) {
+        user = result.rows[0];
+        user.role = 'customer'; // Customers table doesn't have role column
+        user.username = user.name; // Use name as username for frontend
+      }
+    }
+
+    if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
-
-    const user = result.rows[0];
 
     // Verify password
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -181,9 +200,15 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Update last login
-    await pool.query(`
-      UPDATE users SET last_login = NOW() WHERE id = $1
-    `, [user.id]);
+    if (isEmployee) {
+      await pool.query(`
+        UPDATE employees SET last_login = NOW() WHERE id = $1
+      `, [user.id]);
+    } else {
+      await pool.query(`
+        UPDATE customers SET last_login = NOW() WHERE id = $1
+      `, [user.id]);
+    }
 
     // Generate JWT token
     const token = jwt.sign(
@@ -198,8 +223,7 @@ router.post('/login', async (req: Request, res: Response) => {
         id: user.id, 
         username: user.username,
         email: user.email,
-        role: user.role,
-        full_name: user.full_name
+        role: user.role
       } 
     });
   } catch (error: any) {
@@ -215,35 +239,51 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   }
 
   try {
-    const result = await pool.query(`
-      SELECT id, username, role, full_name, created_at, last_login
-      FROM users WHERE id = $1
-    `, [req.user.id]);
+    let user: any = null;
+    
+    // Check if customer or employee
+    if (req.user.role === 'customer') {
+      const result = await pool.query(`
+        SELECT id, email, name as username, created_at, last_login
+        FROM customers WHERE id = $1
+      `, [req.user.id]);
+      if (result.rows.length > 0) {
+        user = { ...result.rows[0], role: 'customer' };
+      }
+    } else {
+      const result = await pool.query(`
+        SELECT id, username, role, created_at, last_login
+        FROM employees WHERE id = $1
+      `, [req.user.id]);
+      if (result.rows.length > 0) {
+        user = result.rows[0];
+      }
+    }
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user: result.rows[0] });
+    res.json({ user });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Failed to get user info' });
   }
 });
 
-// List all users (admin only - for now just return all)
+// List all employees (admin only - for now just return all)
 router.get('/users', async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
-      SELECT id, username, role, full_name, created_at, last_login
-      FROM users
+      SELECT id, username, role, created_at, last_login
+      FROM employees
       ORDER BY created_at DESC
     `);
 
     res.json({ users: result.rows });
   } catch (error) {
-    console.error('List users error:', error);
-    res.status(500).json({ error: 'Failed to list users' });
+    console.error('List employees error:', error);
+    res.status(500).json({ error: 'Failed to list employees' });
   }
 });
 
