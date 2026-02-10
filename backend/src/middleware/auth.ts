@@ -1,16 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-// TODO: Run 'npm install' to install jsonwebtoken, then uncomment below and remove temp implementation
-// import jwt from 'jsonwebtoken';
-
-// Temporary JWT implementation until package is installed
-const jwt = {
-  verify: (token: string, secret: string) => {
-    if (token.startsWith('temp_token_')) {
-      return JSON.parse(token.replace('temp_token_', ''));
-    }
-    throw new Error('Invalid token');
-  }
-};
+import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production-PLEASE';
 
