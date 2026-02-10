@@ -13,17 +13,36 @@ const Kitchen: React.FC = () => {
     socketService.connect();
 
     socketService.onOrderCreated((order) => {
-      setOrders(prev => [order, ...prev]);
+      // Convert price strings to numbers
+      const orderWithNumbers = {
+        ...order,
+        totalPrice: typeof order.totalPrice === 'string' ? parseFloat(order.totalPrice) : order.totalPrice,
+        items: order.items.map((item: any) => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }))
+      };
+      setOrders(prev => [orderWithNumbers, ...prev]);
       playNotificationSound();
     });
 
     socketService.onOrderUpdated((order) => {
-      if (order.status === 'Served') {
+      // Convert price strings to numbers
+      const orderWithNumbers = {
+        ...order,
+        totalPrice: typeof order.totalPrice === 'string' ? parseFloat(order.totalPrice) : order.totalPrice,
+        items: order.items.map((item: any) => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }))
+      };
+      
+      if (orderWithNumbers.status === 'Served') {
         // Remove served orders from kitchen screen
-        setOrders(prev => prev.filter(o => o.id !== order.id));
+        setOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
       } else {
         // Update other orders
-        setOrders(prev => prev.map(o => o.id === order.id ? order : o));
+        setOrders(prev => prev.map(o => o.id === orderWithNumbers.id ? orderWithNumbers : o));
       }
     });
 
@@ -37,8 +56,17 @@ const Kitchen: React.FC = () => {
   const loadOrders = async () => {
     try {
       const allOrders = await api.getOrders();
+      // Convert price strings to numbers
+      const ordersWithNumbers = allOrders.map(order => ({
+        ...order,
+        totalPrice: typeof order.totalPrice === 'string' ? parseFloat(order.totalPrice) : order.totalPrice,
+        items: order.items.map((item: any) => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }))
+      }));
       // Filter orders that are not yet served
-      const activeOrders = allOrders.filter(order => order.status !== 'Served');
+      const activeOrders = ordersWithNumbers.filter(order => order.status !== 'Served');
       setOrders(activeOrders);
     } catch (error) {
       console.error('Error loading orders:', error);

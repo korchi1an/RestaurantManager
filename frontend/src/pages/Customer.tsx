@@ -68,12 +68,22 @@ const Customer: React.FC = () => {
     socketService.connect();
 
     socketService.onOrderUpdated((order) => {
+      // Convert price strings to numbers
+      const orderWithNumbers = {
+        ...order,
+        totalPrice: typeof order.totalPrice === 'string' ? parseFloat(order.totalPrice) : order.totalPrice,
+        items: order.items.map((item: any) => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }))
+      };
+      
       // Update current order if it matches
-      setCurrentOrder(prev => prev && prev.id === order.id ? order : prev);
+      setCurrentOrder(prev => prev && prev.id === orderWithNumbers.id ? orderWithNumbers : prev);
       
       // Update order in sessionOrders array
       setSessionOrders(prev => 
-        prev.map(o => o.id === order.id ? order : o)
+        prev.map(o => o.id === orderWithNumbers.id ? orderWithNumbers : o)
       );
     });
 
@@ -91,8 +101,17 @@ const Customer: React.FC = () => {
       try {
         const orders = await api.get<OrderWithItems[]>(`/sessions/${sessionId}/orders`);
         if (orders && orders.length > 0) {
+          // Convert price strings to numbers (PostgreSQL returns DECIMAL as string)
+          const ordersWithNumbers = orders.map(order => ({
+            ...order,
+            totalPrice: typeof order.totalPrice === 'string' ? parseFloat(order.totalPrice) : order.totalPrice,
+            items: order.items.map(item => ({
+              ...item,
+              price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+            }))
+          }));
           // Sort by newest first
-          const sorted = orders.sort((a, b) => b.id - a.id);
+          const sorted = ordersWithNumbers.sort((a, b) => b.id - a.id);
           setSessionOrders(sorted);
         }
       } catch (error) {
@@ -122,7 +141,12 @@ const Customer: React.FC = () => {
         api.getMenu(),
         api.getCategories()
       ]);
-      setMenuItems(items);
+      // Convert price strings to numbers (PostgreSQL returns DECIMAL as string)
+      const itemsWithNumberPrices = items.map(item => ({
+        ...item,
+        price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+      }));
+      setMenuItems(itemsWithNumberPrices);
       setCategories(['All', ...cats]);
     } catch (error) {
       console.error('Error loading menu:', error);

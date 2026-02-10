@@ -18,30 +18,50 @@ const Waiter: React.FC = () => {
     socketService.connect();
 
     socketService.onOrderReady((order) => {
+      // Convert price fields from string to number (PostgreSQL DECIMAL type)
+      const convertedOrder = {
+        ...order,
+        totalPrice: typeof order.totalPrice === 'string' ? parseFloat(order.totalPrice) : order.totalPrice,
+        items: order.items.map(item => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }))
+      };
+      
       setReadyOrders(prev => {
         // Check if order already exists
-        const exists = prev.some(o => o.id === order.id);
+        const exists = prev.some(o => o.id === convertedOrder.id);
         if (exists) {
-          return prev.map(o => o.id === order.id ? order : o);
+          return prev.map(o => o.id === convertedOrder.id ? convertedOrder : o);
         }
-        return [...prev, order];
+        return [...prev, convertedOrder];
       });
       showNotification(`Comanda #${order.id} pentru Masa ${order.tableNumber} este gata!`);
       playNotificationSound();
     });
 
     socketService.onOrderUpdated(async (order) => {
-      if (order.status === 'Ready') {
+      // Convert price strings to numbers
+      const orderWithNumbers = {
+        ...order,
+        totalPrice: typeof order.totalPrice === 'string' ? parseFloat(order.totalPrice) : order.totalPrice,
+        items: order.items.map((item: any) => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }))
+      };
+      
+      if (orderWithNumbers.status === 'Ready') {
         setReadyOrders(prev => {
-          const exists = prev.some(o => o.id === order.id);
+          const exists = prev.some(o => o.id === orderWithNumbers.id);
           if (exists) {
-            return prev.map(o => o.id === order.id ? order : o);
+            return prev.map(o => o.id === orderWithNumbers.id ? orderWithNumbers : o);
           }
-          return [...prev, order];
+          return [...prev, orderWithNumbers];
         });
-      } else if (order.status === 'Served') {
+      } else if (orderWithNumbers.status === 'Served') {
         // Remove from ready orders when marked as served
-        setReadyOrders(prev => prev.filter(o => o.id !== order.id));
+        setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
         
         // Reload unpaid totals after a brief delay to ensure DB is updated
         setTimeout(async () => {
@@ -51,7 +71,9 @@ const Waiter: React.FC = () => {
             
             for (const table of tables) {
               const result = await api.get<{ tableNumber: number; unpaidTotal: number }>(`/tables/${table.table_number}/unpaid-total`);
-              totalsMap.set(table.table_number, result.unpaidTotal);
+              // Convert string to number
+              const unpaidTotal = typeof result.unpaidTotal === 'string' ? parseFloat(result.unpaidTotal) : result.unpaidTotal;
+              totalsMap.set(table.table_number, unpaidTotal);
             }
             
             setTableUnpaidTotals(totalsMap);
@@ -85,7 +107,9 @@ const Waiter: React.FC = () => {
       
       for (const table of tables) {
         const result = await api.get<{ tableNumber: number; unpaidTotal: number }>(`/tables/${table.table_number}/unpaid-total`);
-        totalsMap.set(table.table_number, result.unpaidTotal);
+        // Convert string to number if needed
+        const unpaidTotal = typeof result.unpaidTotal === 'string' ? parseFloat(result.unpaidTotal) : result.unpaidTotal;
+        totalsMap.set(table.table_number, unpaidTotal);
       }
       
       setTableUnpaidTotals(totalsMap);
@@ -97,7 +121,16 @@ const Waiter: React.FC = () => {
   const loadOrders = async () => {
     try {
       const allOrders = await api.getOrders();
-      const ready = allOrders.filter(order => order.status === 'Ready');
+      // Convert price strings to numbers
+      const ordersWithNumbers = allOrders.map(order => ({
+        ...order,
+        totalPrice: typeof order.totalPrice === 'string' ? parseFloat(order.totalPrice) : order.totalPrice,
+        items: order.items.map((item: any) => ({
+          ...item,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+        }))
+      }));
+      const ready = ordersWithNumbers.filter(order => order.status === 'Ready');
       setReadyOrders(ready);
     } catch (error) {
       console.error('Error loading orders:', error);
