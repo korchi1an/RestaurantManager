@@ -1,29 +1,31 @@
 .customer-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .customer-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
+  padding: 0.5rem 0;
 }
 
 .customer-header h1 {
   color: #333;
-  font-size: 2rem;
+  font-size: 1.5rem;
   flex: 1;
   min-width: 200px;
+  margin: 0;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 2rem;
+  gap: 1rem;
   flex-wrap: wrap;
 }
 
@@ -36,22 +38,25 @@
 .table-selector label {
   font-weight: 600;
   color: #555;
+  font-size: 0.9rem;
 }
 
 .table-selector select {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 0.8rem;
   border: 2px solid #ddd;
   border-radius: 8px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
+  background: white;
 }
 
 .table-info {
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   color: #667eea;
   padding: 0.5rem 1rem;
   background: rgba(102, 126, 234, 0.1);
   border-radius: 8px;
+  font-weight: 600;
 }
 
 .auth-section {
@@ -66,10 +71,10 @@
 
 .login-btn,
 .register-btn {
-  padding: 0.6rem 1.2rem;
+  padding: 0.5rem 1rem;
   border: none;
   border-radius: 6px;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -93,18 +98,6 @@
   background: #45a049;
 }
 
-.logged-in-info {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-}
-
-.user-name {
-  font-weight: 600;
-  color: #333;
-  font-size: 0.95rem;
-}
-
 .logout-btn {
   padding: 0.5rem 1rem;
   background: #f44336;
@@ -112,6 +105,7 @@
   border: none;
   border-radius: 6px;
   font-size: 0.9rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -123,12 +117,12 @@
 .welcome-message {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 1rem 1.5rem;
+  padding: 1rem;
   border-radius: 12px;
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 500;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   animation: slideDown 0.4s ease-out;
 }
@@ -145,7 +139,7 @@
 }
 
 .order-history-section {
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
 }
 
 .history-title {
@@ -550,3 +544,210 @@
   font-weight: 700;
   text-align: right;
 }
+
+/* Mobile-First Responsive Design */
+@media (max-width: 768px) {
+  .customer-container {
+    padding: 0.75rem;
+  }
+
+  .customer-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .customer-header h1 {
+    font-size: 1.3rem;
+    text-align: center;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .table-selector {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .table-selector select {
+    flex: 1;
+    max-width: 200px;
+  }
+
+  .table-info {
+    text-align: center;
+    width: 100%;
+    font-size: 1.1rem;
+  }
+
+  .auth-section {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .auth-buttons {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .login-btn,
+  .register-btn,
+  .logout-btn {
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .welcome-message {
+    font-size: 0.95rem;
+    padding: 0.85rem;
+  }
+
+  .category-filter {
+    gap: 0.4rem;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding-bottom: 0.5rem;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .category-filter::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  .category-filter::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+  }
+
+  .category-btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 1rem;
+    white-space: nowrap;
+  }
+
+  .menu-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .menu-item {
+    padding: 1rem;
+  }
+
+  .menu-item-header h3 {
+    font-size: 1.1rem;
+  }
+
+  .menu-item-header .item-price {
+    font-size: 1rem;
+  }
+
+  .menu-item-body p {
+    font-size: 0.9rem;
+  }
+
+  .add-to-cart-btn {
+    padding: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .cart-container {
+    padding: 1rem;
+    margin-top: 1.5rem;
+  }
+
+  .cart-container h2 {
+    font-size: 1.3rem;
+  }
+
+  .cart-item {
+    padding: 0.75rem;
+  }
+
+  .cart-item-info h4 {
+    font-size: 0.95rem;
+  }
+
+  .cart-item-info p {
+    font-size: 0.85rem;
+  }
+
+  .order-status-card {
+    padding: 1rem;
+  }
+
+  .order-status-card h3 {
+    font-size: 1.1rem;
+  }
+
+  .session-total {
+    font-size: 1rem;
+  }
+
+  .history-title {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-header h1 {
+    font-size: 1.2rem;
+  }
+
+  .welcome-message {
+    font-size: 0.9rem;
+    padding: 0.75rem;
+  }
+
+  .category-btn {
+    font-size: 0.8rem;
+    padding: 0.45rem 0.85rem;
+  }
+
+  .menu-item-header h3 {
+    font-size: 1rem;
+  }
+
+  .menu-item-header .item-price {
+    font-size: 0.95rem;
+  }
+
+  .login-btn,
+  .register-btn,
+  .logout-btn {
+    font-size: 0.85rem;
+    padding: 0.5rem 0.85rem;
+  }
+
+  .cart-container h2 {
+    font-size: 1.2rem;
+  }
+
+  .submit-order-btn {
+    font-size: 0.95rem;
+    padding: 0.7rem;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 768px) and (orientation: landscape) {
+  .customer-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .header-actions {
+    flex-direction: row;
+    width: auto;
+  }
+
+  .menu-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+

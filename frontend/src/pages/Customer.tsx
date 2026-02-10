@@ -306,10 +306,7 @@ const Customer: React.FC = () => {
           </div>
           <div className="auth-section">
             {isLoggedIn ? (
-              <div className="logged-in-info">
-                <span className="user-name">👤 {userName}</span>
-                <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
-              </div>
+              <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
             ) : (
               <div className="auth-buttons">
                 <button 
@@ -332,7 +329,7 @@ const Customer: React.FC = () => {
 
       {isLoggedIn && (
         <div className="welcome-message">
-          Bună, {userName}! 👋 Bucură-te de mesele noastre delicioase.
+          Bună, {userName.split(' ')[0]}! 👋 Bucură-te de mesele noastre delicioase.
         </div>
       )}
 
