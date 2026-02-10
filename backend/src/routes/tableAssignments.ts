@@ -13,10 +13,11 @@ router.get('/', async (req: AuthRequest, res: Response) => {
         t.table_number,
         t.capacity,
         t.status,
-        t.waiter_username,
+        t.waiter_id,
+        e.username as waiter_username,
         e.username as waiter_name
       FROM tables t
-      LEFT JOIN employees e ON t.waiter_username = e.username
+      LEFT JOIN employees e ON t.waiter_id = e.id
       ORDER BY t.table_number
     `);
 
@@ -40,11 +41,11 @@ router.get('/my-tables', async (req: AuthRequest, res: Response) => {
         table_number,
         capacity,
         status,
-        waiter_username
+        waiter_id
       FROM tables
-      WHERE waiter_username = $1
+      WHERE waiter_id = $1
       ORDER BY table_number
-    `, [req.user.id]); // req.user.id contains username for employees
+    `, [req.user.id]);
 
     res.json(result.rows);
   } catch (error: any) {
@@ -57,15 +58,15 @@ router.get('/my-tables', async (req: AuthRequest, res: Response) => {
 router.patch('/:tableId/assign', async (req: AuthRequest, res: Response) => {
   try {
     const { tableId } = req.params;
-    const { waiterId } = req.body; // waiterId is actually username
+    const { waiterId } = req.body;
 
     if (!waiterId) {
-      return res.status(400).json({ error: 'Waiter username is required' });
+      return res.status(400).json({ error: 'Waiter ID is required' });
     }
 
     // Verify waiter exists and has correct role
     const waiterResult = await pool.query(`
-      SELECT username, role FROM employees WHERE username = $1
+      SELECT id, role FROM employees WHERE id = $1
     `, [waiterId]);
 
     if (waiterResult.rows.length === 0) {
@@ -81,7 +82,7 @@ router.patch('/:tableId/assign', async (req: AuthRequest, res: Response) => {
     // Update table assignment
     const updateResult = await pool.query(`
       UPDATE tables 
-      SET waiter_username = $1
+      SET waiter_id = $1
       WHERE id = $2
     `, [waiterId, tableId]);
 
@@ -96,10 +97,11 @@ router.patch('/:tableId/assign', async (req: AuthRequest, res: Response) => {
         t.table_number,
         t.capacity,
         t.status,
-        t.waiter_username,
+        t.waiter_id,
+        e.username as waiter_username,
         e.username as waiter_name
       FROM tables t
-      LEFT JOIN employees e ON t.waiter_username = e.username
+      LEFT JOIN employees e ON t.waiter_id = e.id
       WHERE t.id = $1
     `, [tableId]);
 
@@ -117,7 +119,7 @@ router.patch('/:tableId/unassign', async (req: AuthRequest, res: Response) => {
 
     const result = await pool.query(`
       UPDATE tables 
-      SET waiter_username = NULL
+      SET waiter_id = NULL
       WHERE id = $1
     `, [tableId]);
 
@@ -132,7 +134,7 @@ router.patch('/:tableId/unassign', async (req: AuthRequest, res: Response) => {
         table_number,
         capacity,
         status,
-        waiter_username
+        waiter_id
       FROM tables
       WHERE id = $1
     `, [tableId]);
@@ -149,7 +151,7 @@ router.get('/waiters', async (req: AuthRequest, res: Response) => {
   try {
     const result = await pool.query(`
       SELECT 
-        username as id,
+        id,
         username,
         username as full_name,
         role

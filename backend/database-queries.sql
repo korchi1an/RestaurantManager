@@ -12,7 +12,7 @@ SELECT * FROM menu_items ORDER BY category, name;
 SELECT * FROM tables ORDER BY table_number;
 
 -- View all employees (kitchen, waiters, admin)
-SELECT username, role, created_at, last_login 
+SELECT id, username, role, created_at, last_login 
 FROM employees 
 ORDER BY role, username;
 
@@ -55,10 +55,10 @@ SELECT
     t.table_number,
     t.capacity,
     t.status,
-    t.waiter_username,
+    t.waiter_id,
     e.username as waiter_name
 FROM tables t
-LEFT JOIN employees e ON t.waiter_username = e.username
+LEFT JOIN employees e ON t.waiter_id = e.id
 ORDER BY t.table_number;
 
 -- Active sessions with order counts
