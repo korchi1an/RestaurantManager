@@ -11,6 +11,7 @@ router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), async (re
     const { status } = req.query;
     const userRole = req.user?.role;
     const userId = req.user?.id;
+    console.log('[ORDER FETCH] User:', userId, 'Role:', userRole, 'Status filter:', status);
     
     let query = `
       SELECT o.*, 
@@ -67,9 +68,11 @@ router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), async (re
       items: order.items || []
     }));
     
+    console.log('[ORDER FETCH] Found', formattedOrders.length, 'orders');
     res.json(formattedOrders);
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    console.error('[ORDER FETCH] ❌ Error fetching orders:', error);
+    console.error('[ORDER FETCH] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
@@ -125,8 +128,10 @@ router.get('/:id', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const orderData: CreateOrderRequest = req.body;
+    console.log('[ORDER CREATE] Received order request:', JSON.stringify(orderData, null, 2));
     
     if (!orderData.tableNumber || !orderData.items || orderData.items.length === 0) {
+      console.log('[ORDER CREATE] Invalid order data - missing required fields');
       return res.status(400).json({ error: 'Invalid order data' });
     }
     
@@ -151,7 +156,8 @@ router.post('/', async (req: Request, res: Response) => {
     
     // Use provided sessionId or null if not provided
     const sessionId = orderData.sessionId || null;
-    console.log('Creating order with sessionId:', sessionId, 'tableNumber:', orderData.tableNumber);
+    console.log('[ORDER CREATE] Creating order with sessionId:', sessionId, 'tableNumber:', orderData.tableNumber, 'totalPrice:', totalPrice);
+    console.log('[ORDER CREATE] Items with prices:', JSON.stringify(itemsWithPrices, null, 2));
     
     // Calculate order number for this session
     let orderNumber = 1;
@@ -172,6 +178,7 @@ router.post('/', async (req: Request, res: Response) => {
     `, [orderNumber, sessionId, orderData.tableNumber, totalPrice]);
     
     const orderId = orderResult.rows[0].id;
+    console.log('[ORDER CREATE] Order inserted with ID:', orderId, 'Order Number:', orderNumber);
     
     // Insert order items
     for (const item of itemsWithPrices) {
@@ -179,6 +186,7 @@ router.post('/', async (req: Request, res: Response) => {
         INSERT INTO order_items (order_id, menu_item_id, quantity, price)
         VALUES ($1, $2, $3, $4)
       `, [orderId, item.menuItemId, item.quantity, item.price]);
+      console.log('[ORDER CREATE] Inserted order item:', item.menuItemId, 'qty:', item.quantity);
     }
     
     // Fetch the created order
@@ -216,9 +224,12 @@ router.post('/', async (req: Request, res: Response) => {
       items: order.items || []
     };
     
+    console.log('[ORDER CREATE] ✅ Order created successfully:', orderId, 'Table:', order.table_number, 'Status:', order.status);
+    console.log('[ORDER CREATE] Returning order to client:', JSON.stringify(formattedOrder, null, 2));
     res.status(201).json(formattedOrder);
   } catch (error) {
-    console.error('Error creating order:', error);
+    console.error('[ORDER CREATE] ❌ Error creating order:', error);
+    console.error('[ORDER CREATE] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: 'Failed to create order' });
   }
 });
@@ -228,8 +239,10 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
   try {
     const { status }: UpdateOrderStatusRequest = req.body;
     const validStatuses = ['Pending', 'Preparing', 'Ready', 'Served'];
+    console.log('[ORDER STATUS] Updating order', req.params.id, 'to status:', status);
     
     if (!status || !validStatuses.includes(status)) {
+      console.log('[ORDER STATUS] Invalid status:', status);
       return res.status(400).json({ error: 'Invalid status' });
     }
     
@@ -240,8 +253,11 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
     `, [status, req.params.id]);
     
     if (updateResult.rowCount === 0) {
+      console.log('[ORDER STATUS] Order not found:', req.params.id);
       return res.status(404).json({ error: 'Order not found' });
     }
+    
+    console.log('[ORDER STATUS] ✅ Order', req.params.id, 'updated to:', status);
     
     // Fetch the updated order
     const fetchResult = await pool.query(`
@@ -280,7 +296,8 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
     
     res.json(formattedOrder);
   } catch (error) {
-    console.error('Error updating order status:', error);
+    console.error('[ORDER STATUS] ❌ Error updating order status:', error);
+    console.error('[ORDER STATUS] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: 'Failed to update order status' });
   }
 });
@@ -289,29 +306,36 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
     const orderId = req.params.id;
+    console.log('[ORDER CANCEL] Attempting to cancel order:', orderId);
     
     // Check if order exists and is in Pending status
     const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
     
     if (orderResult.rows.length === 0) {
+      console.log('[ORDER CANCEL] Order not found:', orderId);
       return res.status(404).json({ error: 'Order not found' });
     }
     
     const order = orderResult.rows[0];
+    console.log('[ORDER CANCEL] Order found - Status:', order.status, 'Table:', order.table_number);
     
     if (order.status !== 'Pending') {
+      console.log('[ORDER CANCEL] Cannot cancel - order status is:', order.status);
       return res.status(400).json({ error: 'Can only cancel orders with Pending status' });
     }
     
     // Delete order items first
     await pool.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+    console.log('[ORDER CANCEL] Deleted order items for order:', orderId);
     
     // Delete order
     await pool.query('DELETE FROM orders WHERE id = $1', [orderId]);
+    console.log('[ORDER CANCEL] ✅ Order cancelled successfully:', orderId);
     
     res.json({ success: true, message: 'Order cancelled successfully' });
   } catch (error) {
-    console.error('Error cancelling order:', error);
+    console.error('[ORDER CANCEL] ❌ Error cancelling order:', error);
+    console.error('[ORDER CANCEL] Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ error: 'Failed to cancel order' });
   }
 });
