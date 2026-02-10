@@ -1,38 +1,11 @@
 import { Router, Request, Response } from 'express';
-// TODO: Uncomment after npm install
-// import bcrypt from 'bcrypt';
-// import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import { pool } from '../db/database';
 import { AuthRequest, authenticate } from '../middleware/auth';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production-PLEASE';
-
-// Temporary implementations until bcrypt and jwt are installed
-const bcrypt = {
-  hash: async (password: string, rounds: number) => {
-    // Temporary: just prefix with "hashed_" - NOT SECURE, only for testing
-    return 'temp_hashed_' + password;
-  },
-  compare: async (password: string, hash: string) => {
-    // Temporary: check if hash matches the temp format
-    return hash === 'temp_hashed_' + password;
-  }
-};
-
-const jwt = {
-  sign: (payload: any, secret: string, options: any) => {
-    // Temporary: create a simple token - NOT SECURE, only for testing
-    return 'temp_token_' + JSON.stringify(payload);
-  },
-  verify: (token: string, secret: string) => {
-    // Temporary: parse the simple token
-    if (token.startsWith('temp_token_')) {
-      return JSON.parse(token.replace('temp_token_', ''));
-    }
-    throw new Error('Invalid token');
-  }
-};
 
 // Register new employee (for kitchen/waiter/admin staff only)
 router.post('/register', async (req: Request, res: Response) => {

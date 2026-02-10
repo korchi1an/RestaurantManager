@@ -191,13 +191,19 @@ const initDb = async () => {
     const employeeCount = parseInt(employeeCountResult.rows[0].count);
     
     if (employeeCount === 0) {
-      // Create default test accounts with temporary hashing (matching auth.ts temporary implementation)
-      // Note: In production, use real bcrypt after npm install!
+      // Import bcrypt for real password hashing
+      const bcrypt = require('bcrypt');
+      
+      // Hash passwords properly
+      const kitchenHash = await bcrypt.hash('kitchen123', 10);
+      const waiterHash = await bcrypt.hash('waiter123', 10);
+      const adminHash = await bcrypt.hash('admin123', 10);
+      
       const employees = [
-        ['Chef', 'temp_hashed_kitchen123', 'kitchen'],
-        ['Ana', 'temp_hashed_waiter123', 'waiter'],
-        ['Mihai', 'temp_hashed_waiter123', 'waiter'],
-        ['Admin', 'temp_hashed_admin123', 'admin']
+        ['Chef', kitchenHash, 'kitchen'],
+        ['Ana', waiterHash, 'waiter'],
+        ['Mihai', waiterHash, 'waiter'],
+        ['Admin', adminHash, 'admin']
       ];
 
       for (const employee of employees) {
