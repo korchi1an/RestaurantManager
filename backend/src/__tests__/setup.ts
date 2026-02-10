@@ -1,4 +1,4 @@
-import db from '../db/database';
+import { pool } from '../db/database';
 
 // Setup runs before all tests
 beforeAll(() => {
@@ -6,13 +6,13 @@ beforeAll(() => {
 });
 
 // Cleanup after all tests
-afterAll(() => {
+afterAll(async () => {
   console.log('Cleaning up test environment...');
-  db.close();
+  await pool.end();
 });
 
 // Clean up test data before each test
-beforeEach(() => {
+beforeEach(async () => {
   // Clean up any test users
-  db.prepare('DELETE FROM users WHERE email LIKE ?').run('%test%');
+  await pool.query("DELETE FROM users WHERE email LIKE '%test%'");
 });

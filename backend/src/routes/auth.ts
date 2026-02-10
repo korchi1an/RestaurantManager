@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 // TODO: Uncomment after npm install
 // import bcrypt from 'bcrypt';
 // import jwt from 'jsonwebtoken';
-import db from '../db/database';
+import { pool } from '../db/database';
 import { AuthRequest, authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -53,8 +53,8 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Check if username exists
-    const existingUser = db.prepare('SELECT id FROM users WHERE username = ?').get(username);
-    if (existingUser) {
+    const existingUserResult = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (existingUserResult.rows.length > 0) {
       return res.status(400).json({ error: 'Username already exists' });
     }
 
@@ -62,12 +62,13 @@ router.post('/register', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Insert user
-    const result = db.prepare(`
+    const result = await pool.query(`
       INSERT INTO users (username, password_hash, role, full_name, created_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(username, hashedPassword, role, full_name || username);
+      VALUES ($1, $2, $3, $4, NOW())
+      RETURNING id
+    `, [username, hashedPassword, role, full_name || username]);
 
-    const userId = result.lastInsertRowid;
+    const userId = result.rows[0].id;
 
     // Generate JWT token
     const token = jwt.sign(
@@ -112,8 +113,8 @@ router.post('/register-customer', async (req: Request, res: Response) => {
     }
 
     // Check if email exists
-    const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
-    if (existingUser) {
+    const existingUserResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingUserResult.rows.length > 0) {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
@@ -121,12 +122,13 @@ router.post('/register-customer', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Insert user with customer role
-    const result = db.prepare(`
+    const result = await pool.query(`
       INSERT INTO users (email, password_hash, role, full_name, created_at)
-      VALUES (?, ?, 'customer', ?, datetime('now'))
-    `).run(email, hashedPassword, full_name || email);
+      VALUES ($1, $2, 'customer', $3, NOW())
+      RETURNING id
+    `, [email, hashedPassword, full_name || email]);
 
-    const userId = result.lastInsertRowid;
+    const userId = result.rows[0].id;
 
     // Generate JWT token
     const token = jwt.sign(
@@ -161,13 +163,15 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Get user from database - try both email and username
-    const user = db.prepare(`
-      SELECT * FROM users WHERE email = ? OR username = ?
-    `).get(loginIdentifier, loginIdentifier) as any;
+    const result = await pool.query(`
+      SELECT * FROM users WHERE email = $1 OR username = $1
+    `, [loginIdentifier]);
 
-    if (!user) {
+    if (result.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    const user = result.rows[0];
 
     // Verify password
     const valid = await bcrypt.compare(password, user.password_hash);
@@ -177,9 +181,9 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     // Update last login
-    db.prepare(`
-      UPDATE users SET last_login = datetime('now') WHERE id = ?
-    `).run(user.id);
+    await pool.query(`
+      UPDATE users SET last_login = NOW() WHERE id = $1
+    `, [user.id]);
 
     // Generate JWT token
     const token = jwt.sign(
@@ -205,22 +209,22 @@ router.post('/login', async (req: Request, res: Response) => {
 });
 
 // Get current user info (requires auth)
-router.get('/me', authenticate, (req: AuthRequest, res: Response) => {
+router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
   try {
-    const user = db.prepare(`
+    const result = await pool.query(`
       SELECT id, username, role, full_name, created_at, last_login
-      FROM users WHERE id = ?
-    `).get(req.user.id) as any;
+      FROM users WHERE id = $1
+    `, [req.user.id]);
 
-    if (!user) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json({ user });
+    res.json({ user: result.rows[0] });
   } catch (error) {
     console.error('Get user error:', error);
     res.status(500).json({ error: 'Failed to get user info' });
@@ -228,15 +232,15 @@ router.get('/me', authenticate, (req: AuthRequest, res: Response) => {
 });
 
 // List all users (admin only - for now just return all)
-router.get('/users', (req: Request, res: Response) => {
+router.get('/users', async (req: Request, res: Response) => {
   try {
-    const users = db.prepare(`
+    const result = await pool.query(`
       SELECT id, username, role, full_name, created_at, last_login
       FROM users
       ORDER BY created_at DESC
-    `).all();
+    `);
 
-    res.json({ users });
+    res.json({ users: result.rows });
   } catch (error) {
     console.error('List users error:', error);
     res.status(500).json({ error: 'Failed to list users' });

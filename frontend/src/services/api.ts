@@ -207,6 +207,12 @@ export const api = {
     });
   },
 
+  async cancelOrder(orderId: number): Promise<{ success: boolean; message: string }> {
+    return request<{ success: boolean; message: string }>(`/orders/${orderId}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Tables endpoints
   async getTables() {
     return request('/tables');

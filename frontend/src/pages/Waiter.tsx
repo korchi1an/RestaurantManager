@@ -6,7 +6,6 @@ import '../styles/Waiter.css';
 
 const Waiter: React.FC = () => {
   const [readyOrders, setReadyOrders] = useState<OrderWithItems[]>([]);
-  const [servedOrders, setServedOrders] = useState<OrderWithItems[]>([]);
   const [assignedTables, setAssignedTables] = useState<any[]>([]);
   const [tableUnpaidTotals, setTableUnpaidTotals] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -31,7 +30,7 @@ const Waiter: React.FC = () => {
       playNotificationSound();
     });
 
-    socketService.onOrderUpdated((order) => {
+    socketService.onOrderUpdated(async (order) => {
       if (order.status === 'Ready') {
         setReadyOrders(prev => {
           const exists = prev.some(o => o.id === order.id);
@@ -41,8 +40,25 @@ const Waiter: React.FC = () => {
           return [...prev, order];
         });
       } else if (order.status === 'Served') {
+        // Remove from ready orders when marked as served
         setReadyOrders(prev => prev.filter(o => o.id !== order.id));
-        setServedOrders(prev => [...prev, order]);
+        
+        // Reload unpaid totals after a brief delay to ensure DB is updated
+        setTimeout(async () => {
+          try {
+            const tables = await api.get<any[]>('/table-assignments/my-tables');
+            const totalsMap = new Map<number, number>();
+            
+            for (const table of tables) {
+              const result = await api.get<{ tableNumber: number; unpaidTotal: number }>(`/tables/${table.table_number}/unpaid-total`);
+              totalsMap.set(table.table_number, result.unpaidTotal);
+            }
+            
+            setTableUnpaidTotals(totalsMap);
+          } catch (error) {
+            console.error('Error reloading unpaid totals:', error);
+          }
+        }, 500);
       }
     });
 
@@ -82,9 +98,7 @@ const Waiter: React.FC = () => {
     try {
       const allOrders = await api.getOrders();
       const ready = allOrders.filter(order => order.status === 'Ready');
-      const served = allOrders.filter(order => order.status === 'Served');
       setReadyOrders(ready);
-      setServedOrders(served);
     } catch (error) {
       console.error('Error loading orders:', error);
     }
@@ -115,7 +129,7 @@ const Waiter: React.FC = () => {
     setLoading(true);
     try {
       await api.updateOrderStatus(orderId, 'Served');
-      await loadUnpaidTotals(); // Reload unpaid totals after status update
+      await loadUnpaidTotals();
     } catch (error) {
       console.error('Error updating order:', error);
       alert('Nu s-a putut actualiza starea comenzii');
@@ -158,36 +172,38 @@ const Waiter: React.FC = () => {
         <button className="refresh-btn" onClick={() => { loadOrders(); loadUnpaidTotals(); }}>Actualizează</button>
       </header>
 
-      {assignedTables.length > 0 && (
+      {assignedTables.filter(table => {
+        const unpaidTotal = tableUnpaidTotals.get(table.table_number) || 0;
+        return unpaidTotal > 0;
+      }).length > 0 && (
         <div className="assigned-tables-section">
           <h3>Mesele Tale</h3>
           <div className="assigned-tables-grid">
-            {assignedTables.map(table => {
-              const unpaidTotal = tableUnpaidTotals.get(table.table_number) || 0;
-              return (
-                <div key={table.id} className="table-card">
-                  <div className="table-info">
-                    <h4>Masa {table.table_number}</h4>
-                    <div className="table-stats">
-                      {unpaidTotal > 0 ? (
-                        <>
-                          <span className="unpaid-badge">Neplătit: {unpaidTotal.toFixed(2)} Lei</span>
-                          <button 
-                            className="pay-btn"
-                            onClick={() => markTableAsPaid(table.table_number)}
-                            disabled={loading}
-                          >
-                            Marchează ca Plătit
-                          </button>
-                        </>
-                      ) : (
-                        <span className="paid-badge">Plătit ✓</span>
-                      )}
+            {assignedTables
+              .filter(table => {
+                const unpaidTotal = tableUnpaidTotals.get(table.table_number) || 0;
+                return unpaidTotal > 0;
+              })
+              .map(table => {
+                const unpaidTotal = tableUnpaidTotals.get(table.table_number) || 0;
+                return (
+                  <div key={table.id} className="table-card">
+                    <div className="table-info">
+                      <h4>Masa {table.table_number}</h4>
+                      <div className="table-stats">
+                        <span className="unpaid-badge">Neplătit: {unpaidTotal.toFixed(2)} Lei</span>
+                        <button 
+                          className="pay-btn"
+                          onClick={() => markTableAsPaid(table.table_number)}
+                          disabled={loading}
+                        >
+                          Marchează ca Plătit
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
       )}
@@ -195,6 +211,15 @@ const Waiter: React.FC = () => {
       {assignedTables.length === 0 && (
         <div className="no-tables-warning">
           <p>⚠️ Nu ai mese alocate. Contactează managerul pentru a-ți aloca mese.</p>
+        </div>
+      )}
+
+      {assignedTables.length > 0 && assignedTables.filter(table => {
+        const unpaidTotal = tableUnpaidTotals.get(table.table_number) || 0;
+        return unpaidTotal > 0;
+      }).length === 0 && (
+        <div className="no-tables-warning">
+          <p>✓ Toate mesele tale sunt plătite!</p>
         </div>
       )}
 
@@ -208,10 +233,6 @@ const Waiter: React.FC = () => {
         <div className="stat-card ready">
           <h3>Gata de Servit</h3>
           <p className="stat-number">{readyOrders.length}</p>
-        </div>
-        <div className="stat-card served">
-          <h3>Servite Astăzi</h3>
-          <p className="stat-number">{servedOrders.length}</p>
         </div>
       </div>
 
@@ -253,28 +274,6 @@ const Waiter: React.FC = () => {
                     ✓ Marchează ca Servit
                   </button>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="orders-section">
-        <h2 className="section-title">Servite Recent</h2>
-        {servedOrders.length === 0 ? (
-          <div className="empty-state">
-            <p>Încă nu există comenzi servite</p>
-          </div>
-        ) : (
-          <div className="orders-list">
-            {servedOrders.slice(0, 10).map(order => (
-              <div key={order.id} className="served-order-item">
-                <div className="served-order-info">
-                  <strong>Masa {order.tableNumber}</strong>
-                  <span>Comanda #{order.id}</span>
-                  <span>{order.totalPrice.toFixed(2)} Lei</span>
-                </div>
-                <div className="served-time">{formatTime(order.updatedAt)}</div>
               </div>
             ))}
           </div>

@@ -18,7 +18,13 @@ const Kitchen: React.FC = () => {
     });
 
     socketService.onOrderUpdated((order) => {
-      setOrders(prev => prev.map(o => o.id === order.id ? order : o));
+      if (order.status === 'Served') {
+        // Remove served orders from kitchen screen
+        setOrders(prev => prev.filter(o => o.id !== order.id));
+      } else {
+        // Update other orders
+        setOrders(prev => prev.map(o => o.id === order.id ? order : o));
+      }
     });
 
     return () => {

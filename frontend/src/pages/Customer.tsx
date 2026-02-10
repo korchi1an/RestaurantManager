@@ -68,9 +68,9 @@ const Customer: React.FC = () => {
     socketService.connect();
 
     socketService.onOrderUpdated((order) => {
-      if (currentOrder && order.id === currentOrder.id) {
-        setCurrentOrder(order);
-      }
+      // Update current order if it matches
+      setCurrentOrder(prev => prev && prev.id === order.id ? order : prev);
+      
       // Update order in sessionOrders array
       setSessionOrders(prev => 
         prev.map(o => o.id === order.id ? order : o)
@@ -223,9 +223,6 @@ const Customer: React.FC = () => {
       // Clear cart to allow placing another order
       setCart([]);
       
-      // Show success message with order number
-      alert(`Comanda #${order.id} a fost trimisă cu succes! Puteți urmări statusul comenzii mai jos.`);
-      
       // Keep session active for additional orders
     } catch (error: any) {
       console.error('Error submitting order:', error);
@@ -233,6 +230,23 @@ const Customer: React.FC = () => {
       alert(errorMessage);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const cancelOrder = async (orderId: number) => {
+    if (!confirm('Sunteți sigur că doriți să anulați această comandă?')) {
+      return;
+    }
+
+    try {
+      await api.cancelOrder(orderId);
+      
+      // Remove from session orders list
+      setSessionOrders(prev => prev.filter(order => order.id !== orderId));
+    } catch (error: any) {
+      console.error('Error cancelling order:', error);
+      const errorMessage = error.message || 'Nu s-a putut anula comanda';
+      alert(errorMessage);
     }
   };
 
@@ -327,6 +341,14 @@ const Customer: React.FC = () => {
                     </div>
                   ))}
                 </div>
+              )}
+              {order.status === 'Pending' && (
+                <button 
+                  className="cancel-order-btn" 
+                  onClick={() => cancelOrder(order.id)}
+                >
+                  ✕ Anulează Comanda
+                </button>
               )}
             </div>
           ))}

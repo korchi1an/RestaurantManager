@@ -255,6 +255,29 @@
   border-bottom: 1px solid #e9ecef;
 }
 
+.cancel-order-btn {
+  margin-top: 1rem;
+  padding: 0.6rem 1.2rem;
+  background: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.cancel-order-btn:hover {
+  background: #c82333;
+  transform: translateY(-1px);
+}
+
+.cancel-order-btn:active {
+  transform: translateY(0);
+}
+
 .session-indicator {
   color: #4CAF50;
   font-size: 0.85rem;

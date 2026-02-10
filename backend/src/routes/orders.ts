@@ -1,12 +1,12 @@
 import { Router, Request, Response } from 'express';
-import db from '../db/database';
+import { pool } from '../db/database';
 import { CreateOrderRequest, Order, OrderWithItems, UpdateOrderStatusRequest } from '../models/types';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
 // GET /api/orders - Get all orders (Kitchen and Waiter only)
-router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), (req: AuthRequest, res: Response) => {
+router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), async (req: AuthRequest, res: Response) => {
   try {
     const { status } = req.query;
     const userRole = req.user?.role;
@@ -14,8 +14,8 @@ router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), (req: Aut
     
     let query = `
       SELECT o.*, 
-        json_group_array(
-          json_object(
+        json_agg(
+          json_build_object(
             'id', oi.id,
             'orderId', oi.order_id,
             'menuItemId', oi.menu_item_id,
@@ -24,7 +24,7 @@ router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), (req: Aut
             'name', mi.name,
             'category', mi.category
           )
-        ) as items
+        ) FILTER (WHERE oi.id IS NOT NULL) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
@@ -32,16 +32,19 @@ router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), (req: Aut
     
     const conditions: string[] = [];
     const params: any[] = [];
+    let paramCount = 1;
     
     // If waiter, only show orders from their assigned tables
     if (userRole === 'waiter') {
-      conditions.push(`o.table_number IN (SELECT table_number FROM tables WHERE waiter_id = ?)`);
+      conditions.push(`o.table_number IN (SELECT table_number FROM tables WHERE waiter_id = $${paramCount})`);
       params.push(userId);
+      paramCount++;
     }
     
     if (status) {
-      conditions.push('o.status = ?');
+      conditions.push(`o.status = $${paramCount}`);
       params.push(status);
+      paramCount++;
     }
     
     if (conditions.length > 0) {
@@ -50,19 +53,18 @@ router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), (req: Aut
     
     query += ' GROUP BY o.id ORDER BY o.created_at DESC';
     
-    const stmt = db.prepare(query);
-    const orders = stmt.all(...params) as any[];
+    const result = await pool.query(query, params);
     
-    const formattedOrders: OrderWithItems[] = orders.map(order => ({
+    const formattedOrders: OrderWithItems[] = result.rows.map((order: any) => ({
       id: order.id,
       orderNumber: order.order_number,
       sessionId: order.session_id,
       tableNumber: order.table_number,
       status: order.status,
-      totalPrice: order.total_price,
+      totalPrice: parseFloat(order.total_price),
       createdAt: order.created_at,
       updatedAt: order.updated_at,
-      items: JSON.parse(order.items).filter((item: any) => item.id !== null)
+      items: order.items || []
     }));
     
     res.json(formattedOrders);
@@ -73,12 +75,12 @@ router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), (req: Aut
 });
 
 // GET /api/orders/:id - Get a specific order
-router.get('/:id', (req: Request, res: Response) => {
+router.get('/:id', async (req: Request, res: Response) => {
   try {
-    const query = `
+    const result = await pool.query(`
       SELECT o.*, 
-        json_group_array(
-          json_object(
+        json_agg(
+          json_build_object(
             'id', oi.id,
             'orderId', oi.order_id,
             'menuItemId', oi.menu_item_id,
@@ -87,30 +89,29 @@ router.get('/:id', (req: Request, res: Response) => {
             'name', mi.name,
             'category', mi.category
           )
-        ) as items
+        ) FILTER (WHERE oi.id IS NOT NULL) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE o.id = ?
+      WHERE o.id = $1
       GROUP BY o.id
-    `;
+    `, [req.params.id]);
     
-    const order = db.prepare(query).get(req.params.id) as any;
-    
-    if (!order) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Order not found' });
     }
     
+    const order = result.rows[0];
     const formattedOrder: OrderWithItems = {
       id: order.id,
       orderNumber: order.order_number,
       sessionId: order.session_id,
       tableNumber: order.table_number,
       status: order.status,
-      totalPrice: order.total_price,
+      totalPrice: parseFloat(order.total_price),
       createdAt: order.created_at,
       updatedAt: order.updated_at,
-      items: JSON.parse(order.items).filter((item: any) => item.id !== null)
+      items: order.items || []
     };
     
     res.json(formattedOrder);
@@ -121,7 +122,7 @@ router.get('/:id', (req: Request, res: Response) => {
 });
 
 // POST /api/orders - Create a new order
-router.post('/', (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response) => {
   try {
     const orderData: CreateOrderRequest = req.body;
     
@@ -134,11 +135,12 @@ router.post('/', (req: Request, res: Response) => {
     const itemsWithPrices = [];
     
     for (const item of orderData.items) {
-      const menuItem = db.prepare('SELECT * FROM menu_items WHERE id = ?').get(item.menuItemId) as any;
-      if (!menuItem) {
+      const menuItemResult = await pool.query('SELECT * FROM menu_items WHERE id = $1', [item.menuItemId]);
+      if (menuItemResult.rows.length === 0) {
         return res.status(400).json({ error: `Menu item ${item.menuItemId} not found` });
       }
-      const itemTotal = menuItem.price * item.quantity;
+      const menuItem = menuItemResult.rows[0];
+      const itemTotal = parseFloat(menuItem.price) * item.quantity;
       totalPrice += itemTotal;
       itemsWithPrices.push({
         menuItemId: item.menuItemId,
@@ -147,8 +149,6 @@ router.post('/', (req: Request, res: Response) => {
       });
     }
     
-    const now = new Date().toISOString();
-    
     // Use provided sessionId or null if not provided
     const sessionId = orderData.sessionId || null;
     console.log('Creating order with sessionId:', sessionId, 'tableNumber:', orderData.tableNumber);
@@ -156,38 +156,36 @@ router.post('/', (req: Request, res: Response) => {
     // Calculate order number for this session
     let orderNumber = 1;
     if (sessionId) {
-      const lastOrder = db.prepare(`
+      const lastOrderResult = await pool.query(`
         SELECT MAX(order_number) as max_number 
         FROM orders 
-        WHERE session_id = ?
-      `).get(sessionId) as any;
-      orderNumber = (lastOrder?.max_number || 0) + 1;
+        WHERE session_id = $1
+      `, [sessionId]);
+      orderNumber = (lastOrderResult.rows[0]?.max_number || 0) + 1;
     }
     
     // Insert order
-    const insertOrder = db.prepare(`
+    const orderResult = await pool.query(`
       INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
-      VALUES (?, ?, ?, 'Pending', ?, ?, ?)
-    `);
+      VALUES ($1, $2, $3, 'Pending', $4, NOW(), NOW())
+      RETURNING id
+    `, [orderNumber, sessionId, orderData.tableNumber, totalPrice]);
     
-    const result = insertOrder.run(orderNumber, sessionId, orderData.tableNumber, totalPrice, now, now);
-    const orderId = result.lastInsertRowid;
+    const orderId = orderResult.rows[0].id;
     
     // Insert order items
-    const insertOrderItem = db.prepare(`
-      INSERT INTO order_items (order_id, menu_item_id, quantity, price)
-      VALUES (?, ?, ?, ?)
-    `);
-    
     for (const item of itemsWithPrices) {
-      insertOrderItem.run(orderId, item.menuItemId, item.quantity, item.price);
+      await pool.query(`
+        INSERT INTO order_items (order_id, menu_item_id, quantity, price)
+        VALUES ($1, $2, $3, $4)
+      `, [orderId, item.menuItemId, item.quantity, item.price]);
     }
     
     // Fetch the created order
-    const query = `
+    const fetchResult = await pool.query(`
       SELECT o.*, 
-        json_group_array(
-          json_object(
+        json_agg(
+          json_build_object(
             'id', oi.id,
             'orderId', oi.order_id,
             'menuItemId', oi.menu_item_id,
@@ -196,15 +194,15 @@ router.post('/', (req: Request, res: Response) => {
             'name', mi.name,
             'category', mi.category
           )
-        ) as items
+        ) FILTER (WHERE oi.id IS NOT NULL) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE o.id = ?
+      WHERE o.id = $1
       GROUP BY o.id
-    `;
+    `, [orderId]);
     
-    const order = db.prepare(query).get(orderId) as any;
+    const order = fetchResult.rows[0];
     
     const formattedOrder: OrderWithItems = {
       id: order.id,
@@ -212,10 +210,10 @@ router.post('/', (req: Request, res: Response) => {
       sessionId: order.session_id,
       tableNumber: order.table_number,
       status: order.status,
-      totalPrice: order.total_price,
+      totalPrice: parseFloat(order.total_price),
       createdAt: order.created_at,
       updatedAt: order.updated_at,
-      items: JSON.parse(order.items).filter((item: any) => item.id !== null)
+      items: order.items || []
     };
     
     res.status(201).json(formattedOrder);
@@ -226,7 +224,7 @@ router.post('/', (req: Request, res: Response) => {
 });
 
 // PATCH /api/orders/:id/status - Update order status (Kitchen and Waiter only)
-router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'), (req: Request, res: Response) => {
+router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'), async (req: Request, res: Response) => {
   try {
     const { status }: UpdateOrderStatusRequest = req.body;
     const validStatuses = ['Pending', 'Preparing', 'Ready', 'Served'];
@@ -235,25 +233,21 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
       return res.status(400).json({ error: 'Invalid status' });
     }
     
-    const now = new Date().toISOString();
-    
-    const updateOrder = db.prepare(`
+    const updateResult = await pool.query(`
       UPDATE orders 
-      SET status = ?, updated_at = ?
-      WHERE id = ?
-    `);
+      SET status = $1, updated_at = NOW()
+      WHERE id = $2
+    `, [status, req.params.id]);
     
-    const result = updateOrder.run(status, now, req.params.id);
-    
-    if (result.changes === 0) {
+    if (updateResult.rowCount === 0) {
       return res.status(404).json({ error: 'Order not found' });
     }
     
     // Fetch the updated order
-    const query = `
+    const fetchResult = await pool.query(`
       SELECT o.*, 
-        json_group_array(
-          json_object(
+        json_agg(
+          json_build_object(
             'id', oi.id,
             'orderId', oi.order_id,
             'menuItemId', oi.menu_item_id,
@@ -262,15 +256,15 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
             'name', mi.name,
             'category', mi.category
           )
-        ) as items
+        ) FILTER (WHERE oi.id IS NOT NULL) as items
       FROM orders o
       LEFT JOIN order_items oi ON o.id = oi.order_id
       LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE o.id = ?
+      WHERE o.id = $1
       GROUP BY o.id
-    `;
+    `, [req.params.id]);
     
-    const order = db.prepare(query).get(req.params.id) as any;
+    const order = fetchResult.rows[0];
     
     const formattedOrder: OrderWithItems = {
       id: order.id,
@@ -278,16 +272,47 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
       sessionId: order.session_id,
       tableNumber: order.table_number,
       status: order.status,
-      totalPrice: order.total_price,
+      totalPrice: parseFloat(order.total_price),
       createdAt: order.created_at,
       updatedAt: order.updated_at,
-      items: JSON.parse(order.items).filter((item: any) => item.id !== null)
+      items: order.items || []
     };
     
     res.json(formattedOrder);
   } catch (error) {
     console.error('Error updating order status:', error);
     res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
+
+// DELETE /api/orders/:id - Cancel an order (only if Pending status)
+router.delete('/:id', async (req: Request, res: Response) => {
+  try {
+    const orderId = req.params.id;
+    
+    // Check if order exists and is in Pending status
+    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
+    
+    if (orderResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    
+    const order = orderResult.rows[0];
+    
+    if (order.status !== 'Pending') {
+      return res.status(400).json({ error: 'Can only cancel orders with Pending status' });
+    }
+    
+    // Delete order items first
+    await pool.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+    
+    // Delete order
+    await pool.query('DELETE FROM orders WHERE id = $1', [orderId]);
+    
+    res.json({ success: true, message: 'Order cancelled successfully' });
+  } catch (error) {
+    console.error('Error cancelling order:', error);
+    res.status(500).json({ error: 'Failed to cancel order' });
   }
 });
 

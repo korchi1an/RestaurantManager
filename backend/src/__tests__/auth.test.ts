@@ -1,6 +1,6 @@
 import request from 'supertest';
 import app from '../server';
-import db from '../db/database';
+import { pool } from '../db/database';
 
 describe('Authentication API', () => {
   describe('POST /api/auth/register-customer', () => {
@@ -81,8 +81,8 @@ describe('Authentication API', () => {
         });
 
       // Check database directly
-      const user = db.prepare('SELECT password_hash FROM users WHERE email = ?')
-        .get('hashtest@test.com') as { password_hash: string };
+      const result = await pool.query('SELECT password_hash FROM users WHERE email = $1', ['hashtest@test.com']);
+      const user = result.rows[0] as { password_hash: string };
 
       expect(user.password_hash).toBeDefined();
       expect(user.password_hash).not.toBe(plainPassword);
