@@ -8,7 +8,7 @@ const router = Router();
 // POST /api/sessions - Create new session
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const { tableNumber, deviceId, customerId }: CreateSessionRequest = req.body;
+    const { tableNumber, deviceId, customerId, customerName }: CreateSessionRequest = req.body;
     
     if (!tableNumber || !deviceId) {
       return res.status(400).json({ error: 'Table number and device ID required' });
@@ -17,9 +17,9 @@ router.post('/', async (req: Request, res: Response) => {
     const sessionId = uuidv4();
 
     await pool.query(`
-      INSERT INTO sessions (id, table_number, device_id, customer_id, created_at, last_activity, is_active)
-      VALUES ($1, $2, $3, $4, NOW(), NOW(), true)
-    `, [sessionId, tableNumber, deviceId, customerId || null]);
+      INSERT INTO sessions (id, table_number, device_id, customer_id, customer_name, created_at, last_activity, is_active)
+      VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), true)
+    `, [sessionId, tableNumber, deviceId, customerId || null, customerName || null]);
 
     res.status(201).json({
       sessionId,
@@ -55,6 +55,7 @@ router.get('/table/:tableNumber', async (req: Request, res: Response) => {
       tableNumber: session.table_number,
       deviceId: session.device_id,
       customerId: session.customer_id,
+      customerName: session.customer_name,
       createdAt: session.created_at,
       lastActivity: session.last_activity,
       isActive: session.is_active,
@@ -124,6 +125,7 @@ router.get('/:sessionId', async (req: Request, res: Response) => {
       tableNumber: session.table_number,
       deviceId: session.device_id,
       customerId: session.customer_id,
+      customerName: session.customer_name,
       createdAt: session.created_at,
       lastActivity: session.last_activity,
       isActive: session.is_active,

@@ -41,13 +41,14 @@ class SessionService {
     return null;
   }
 
-  async createSession(tableNumber: number): Promise<SessionData> {
+  async createSession(tableNumber: number, customerName?: string): Promise<SessionData> {
     const response = await fetch(`${API_BASE}/sessions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         tableNumber,
-        deviceId: this.deviceId
+        deviceId: this.deviceId,
+        customerName: customerName || localStorage.getItem('user_name') || undefined
       })
     });
 

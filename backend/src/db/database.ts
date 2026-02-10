@@ -65,11 +65,25 @@ const initDb = async () => {
         table_number INTEGER NOT NULL,
         device_id VARCHAR(255) NOT NULL,
         customer_id VARCHAR(255),
+        customer_name VARCHAR(255),
         created_at TIMESTAMP NOT NULL,
         last_activity TIMESTAMP NOT NULL,
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
         FOREIGN KEY (table_number) REFERENCES tables(table_number)
       )
+    `);
+
+    // Add customer_name column if it doesn't exist (migration for existing databases)
+    await client.query(`
+      DO $$ 
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'sessions' AND column_name = 'customer_name'
+        ) THEN
+          ALTER TABLE sessions ADD COLUMN customer_name VARCHAR(255);
+        END IF;
+      END $$;
     `);
 
     // Orders Table

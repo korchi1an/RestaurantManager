@@ -6,6 +6,7 @@ export interface Session {
   tableNumber: number;
   deviceId: string;
   customerId?: string;
+  customerName?: string;
   createdAt: string;
   lastActivity: string;
   isActive: boolean;
@@ -59,6 +60,7 @@ export interface CreateSessionRequest {
   tableNumber: number;
   deviceId: string;
   customerId?: string;
+  customerName?: string;
 }
 
 export interface SessionWithOrders extends Session {
