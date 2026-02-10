@@ -19,7 +19,7 @@ router.get('/', async (req: Request, res: Response) => {
 router.get('/categories', async (req: Request, res: Response) => {
   try {
     const result = await pool.query('SELECT DISTINCT category FROM menu_items ORDER BY category');
-    res.json(result.rows.map(row => row.category));
+    res.json(result.rows.map((row: any) => row.category));
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: 'Failed to fetch categories' });

@@ -93,7 +93,7 @@ router.get('/:tableNumber/orders', async (req: Request, res: Response) => {
       ORDER BY o.created_at DESC
     `, [tableNumber]);
 
-    const formattedOrders = result.rows.map(order => ({
+    const formattedOrders = result.rows.map((order: any) => ({
       id: order.id,
       sessionId: order.session_id,
       tableNumber: order.table_number,
