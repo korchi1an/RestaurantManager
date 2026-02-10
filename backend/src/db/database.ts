@@ -24,8 +24,7 @@ const initDb = async () => {
     // Employees Table for Kitchen, Waiter, and Admin authentication
     await client.query(`
       CREATE TABLE IF NOT EXISTS employees (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(255) UNIQUE NOT NULL,
+        username VARCHAR(255) PRIMARY KEY,
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(50) NOT NULL CHECK(role IN ('kitchen', 'waiter', 'admin')),
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -63,8 +62,8 @@ const initDb = async () => {
         table_number INTEGER NOT NULL UNIQUE,
         capacity INTEGER NOT NULL,
         status VARCHAR(50) NOT NULL DEFAULT 'Available',
-        waiter_id INTEGER,
-        FOREIGN KEY (waiter_id) REFERENCES employees(id) ON DELETE SET NULL
+        waiter_username VARCHAR(255),
+        FOREIGN KEY (waiter_username) REFERENCES employees(username) ON DELETE SET NULL
       )
     `);
 

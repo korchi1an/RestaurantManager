@@ -53,7 +53,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     // Check if username exists
-    const existingUserResult = await pool.query('SELECT id FROM employees WHERE username = $1', [username]);
+    const existingUserResult = await pool.query('SELECT username FROM employees WHERE username = $1', [username]);
     if (existingUserResult.rows.length > 0) {
       return res.status(400).json({ error: 'Username already exists' });
     }
@@ -62,17 +62,14 @@ router.post('/register', async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     // Insert employee
-    const result = await pool.query(`
+    await pool.query(`
       INSERT INTO employees (username, password_hash, role, created_at)
       VALUES ($1, $2, $3, NOW())
-      RETURNING id
     `, [username, hashedPassword, role]);
-
-    const userId = result.rows[0].id;
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: userId, userId, username, role },
+      { username, role },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -80,7 +77,6 @@ router.post('/register', async (req: Request, res: Response) => {
     res.status(201).json({ 
       token, 
       user: { 
-        id: userId, 
         username, 
         role
       } 
@@ -202,8 +198,8 @@ router.post('/login', async (req: Request, res: Response) => {
     // Update last login
     if (isEmployee) {
       await pool.query(`
-        UPDATE employees SET last_login = NOW() WHERE id = $1
-      `, [user.id]);
+        UPDATE employees SET last_login = NOW() WHERE username = $1
+      `, [user.username]);
     } else {
       await pool.query(`
         UPDATE customers SET last_login = NOW() WHERE id = $1
@@ -212,7 +208,12 @@ router.post('/login', async (req: Request, res: Response) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, userId: user.id, username: user.username, email: user.email, role: user.role },
+      { 
+        id: isEmployee ? user.username : user.id,
+        username: user.username, 
+        email: user.email, 
+        role: user.role 
+      },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -220,7 +221,7 @@ router.post('/login', async (req: Request, res: Response) => {
     res.json({ 
       token, 
       user: { 
-        id: user.id, 
+        id: isEmployee ? user.username : user.id,
         username: user.username,
         email: user.email,
         role: user.role
@@ -252,11 +253,11 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
       }
     } else {
       const result = await pool.query(`
-        SELECT id, username, role, created_at, last_login
-        FROM employees WHERE id = $1
-      `, [req.user.id]);
+        SELECT username, role, created_at, last_login
+        FROM employees WHERE username = $1
+      `, [req.user.id]); // req.user.id contains username for employees
       if (result.rows.length > 0) {
-        user = result.rows[0];
+        user = { ...result.rows[0], id: result.rows[0].username };
       }
     }
 
@@ -275,7 +276,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
 router.get('/users', async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
-      SELECT id, username, role, created_at, last_login
+      SELECT username, role, created_at, last_login
       FROM employees
       ORDER BY created_at DESC
     `);
