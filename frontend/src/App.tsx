@@ -33,11 +33,12 @@ function Navigation() {
   const location = useLocation();
   const isTableRoute = location.pathname.startsWith('/table/');
   const isLoginRoute = location.pathname === '/login' || location.pathname === '/customer-login' || location.pathname === '/customer-register';
+  const isKitchenOrWaiterRoute = location.pathname === '/kitchen' || location.pathname === '/waiter';
   const token = localStorage.getItem('auth_token');
   const userName = localStorage.getItem('user_name');
 
-  // Hide navigation when user comes from QR code or on login/register pages
-  if (isTableRoute || isLoginRoute) {
+  // Hide navigation when user comes from QR code or on login/register/kitchen/waiter pages
+  if (isTableRoute || isLoginRoute || isKitchenOrWaiterRoute) {
     return null;
   }
 
