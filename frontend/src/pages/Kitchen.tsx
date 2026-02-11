@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { OrderWithItems } from '../types';
 import { api } from '../services/api';
 import socketService from '../services/socket';
@@ -7,6 +8,7 @@ import '../styles/Kitchen.css';
 const Kitchen: React.FC = () => {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadOrders();
@@ -140,7 +142,16 @@ const Kitchen: React.FC = () => {
     <div className="kitchen-container">
       <header className="kitchen-header">
         <h1>Panoul Bucătăriei</h1>
-        <button className="refresh-btn" onClick={loadOrders}>Actualizează</button>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button className="refresh-btn" onClick={loadOrders}>Actualizează</button>
+          <button 
+            className="refresh-btn" 
+            onClick={() => navigate('/assignments')}
+            style={{ backgroundColor: '#4CAF50' }}
+          >
+            Managementul Meselor
+          </button>
+        </div>
       </header>
 
       <div className="kitchen-stats">
