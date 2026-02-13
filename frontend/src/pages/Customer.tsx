@@ -276,6 +276,17 @@ const Customer: React.FC = () => {
     setUserName('');
   };
 
+  const callWaiter = async () => {
+    try {
+      const customerName = userName || 'Guest';
+      await api.post(`/tables/${tableNumber}/call-waiter`, { customerName });
+      alert('🔔 Waiter has been notified!');
+    } catch (error: any) {
+      console.error('Error calling waiter:', error);
+      alert('Failed to call waiter. Please try again.');
+    }
+  };
+
   return (
     <div className="customer-container">
       <header className="customer-header">
@@ -297,6 +308,13 @@ const Customer: React.FC = () => {
               </>
             )}
           </div>
+          <button 
+            className="call-waiter-btn" 
+            onClick={callWaiter}
+            title="Call your waiter"
+          >
+            🔔 Call Waiter
+          </button>
           <div className="auth-section">
             {isLoggedIn ? (
               <button className="logout-btn" onClick={handleLogout}>Deconectare</button>

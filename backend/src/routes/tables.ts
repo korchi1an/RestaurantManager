@@ -156,4 +156,52 @@ router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitche
   }
 });
 
+// POST /api/tables/:tableNumber/call-waiter - Call waiter for a table
+router.post('/:tableNumber/call-waiter', async (req: Request, res: Response) => {
+  try {
+    const { tableNumber } = req.params;
+    const { customerName } = req.body;
+
+    // Verify table exists
+    const result = await pool.query('SELECT * FROM tables WHERE table_number = $1', [tableNumber]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Table not found' });
+    }
+
+    // Get waiters assigned to this table
+    const assignmentResult = await pool.query(`
+      SELECT ta.user_id, u.name
+      FROM table_assignments ta
+      JOIN users u ON ta.user_id = u.id
+      WHERE ta.table_number = $1
+    `, [tableNumber]);
+
+    logger.info('WAITER CALL', { 
+      tableNumber, 
+      customerName: customerName || 'Guest',
+      assignedWaiters: assignmentResult.rows.length 
+    });
+
+    // Import io dynamically to avoid circular dependency
+    const { io } = await import('../server');
+    
+    // Emit to all waiters (they'll filter based on their assignments)
+    io.emit('waiter-called', {
+      tableNumber: parseInt(tableNumber),
+      customerName: customerName || 'Guest',
+      timestamp: new Date().toISOString(),
+      assignedWaiters: assignmentResult.rows.map(r => ({ id: r.user_id, name: r.name }))
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Waiter has been notified',
+      assignedWaiters: assignmentResult.rows.length
+    });
+  } catch (error) {
+    logger.error('TABLES - Error calling waiter', { error, tableNumber: req.params.tableNumber });
+    res.status(500).json({ error: 'Failed to call waiter' });
+  }
+});
+
 export default router;

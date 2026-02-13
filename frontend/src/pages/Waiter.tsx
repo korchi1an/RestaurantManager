@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { OrderWithItems } from '../types';
 import { api } from '../services/api';
 import socketService from '../services/socket';
 import '../styles/Waiter.css';
 
 const Waiter: React.FC = () => {
+  const navigate = useNavigate();
   const [readyOrders, setReadyOrders] = useState<OrderWithItems[]>([]);
   const [assignedTables, setAssignedTables] = useState<any[]>([]);
   const [tableUnpaidTotals, setTableUnpaidTotals] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<string>('');
+  const [waiterCall, setWaiterCall] = useState<{ tableNumber: number; customerName: string } | null>(null);
 
   useEffect(() => {
     loadAssignedTables();
@@ -84,12 +87,25 @@ const Waiter: React.FC = () => {
       }
     });
 
+    socketService.onWaiterCalled((data) => {
+      // Check if this waiter is assigned to the called table
+      const isAssigned = assignedTables.some(table => table.table_number === data.tableNumber);
+      if (isAssigned) {
+        setWaiterCall({ tableNumber: data.tableNumber, customerName: data.customerName });
+        showNotification(`🔔 Table ${data.tableNumber} is calling! Customer: ${data.customerName}`);
+        playNotificationSound();
+        // Auto-hide after 10 seconds
+        setTimeout(() => setWaiterCall(null), 10000);
+      }
+    });
+
     return () => {
       socketService.off('orderReady');
       socketService.off('orderUpdated');
+      socketService.off('waiter-called');
       socketService.disconnect();
     };
-  }, []);
+  }, [assignedTables]);
 
   const loadAssignedTables = async () => {
     try {
@@ -202,8 +218,27 @@ const Waiter: React.FC = () => {
     <div className="waiter-container">
       <header className="waiter-header">
         <h1>Panoul Chelnerului</h1>
-        <button className="refresh-btn" onClick={() => { loadOrders(); loadUnpaidTotals(); }}>Actualizează</button>
+        <div className="header-buttons">
+          <button 
+            className="take-order-btn" 
+            onClick={() => navigate('/')}
+            title="Take order for a customer"
+          >
+            📝 Take Order
+          </button>
+          <button className="refresh-btn" onClick={() => { loadOrders(); loadUnpaidTotals(); }}>Actualizează</button>
+        </div>
       </header>
+
+      {waiterCall && (
+        <div className="waiter-call-alert">
+          <div className="alert-content">
+            🔔 <strong>Table {waiterCall.tableNumber} is calling!</strong>
+            <span>Customer: {waiterCall.customerName}</span>
+            <button onClick={() => setWaiterCall(null)}>✕</button>
+          </div>
+        </div>
+      )}
 
       {assignedTables.filter(table => {
         const unpaidTotal = tableUnpaidTotals.get(table.table_number) || 0;

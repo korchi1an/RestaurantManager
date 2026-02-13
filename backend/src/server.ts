@@ -216,5 +216,6 @@ process.on('uncaughtException', (error: Error) => {
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
-// Export app for testing
+// Export app and io for testing and routes
 export default app;
+export { io };

@@ -76,6 +76,12 @@ class SocketService {
     }
   }
 
+  onWaiterCalled(callback: (data: { tableNumber: number; customerName: string; timestamp: string; assignedWaiters: any[] }) => void) {
+    if (this.socket) {
+      this.socket.on('waiter-called', callback);
+    }
+  }
+
   off(event: string) {
     if (this.socket) {
       this.socket.off(event);
