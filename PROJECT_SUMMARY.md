@@ -9,7 +9,7 @@ A complete **Restaurant Order Management System** with three distinct user inter
 ### 1. Complete Project Structure
 - ✅ Backend (Node.js + Express + TypeScript)
 - ✅ Frontend (React + TypeScript + Vite)
-- ✅ Database (SQLite with seed data)
+- ✅ Database (PostgreSQL with connection pool)
 - ✅ Real-time communication (Socket.IO)
 
 ### 2. Data Models
@@ -335,6 +335,6 @@ You now have a fully functional restaurant order management system with:
 
 ---
 
-**Built with:** React, TypeScript, Express, Socket.IO, SQLite  
+**Built with:** React, TypeScript, Express, Socket.IO, PostgreSQL  
 **Architecture:** Clean layered architecture with separation of concerns  
 **Status:** ✅ Complete and ready to run

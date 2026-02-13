@@ -30,8 +30,11 @@ A full-stack web application for managing restaurant orders with real-time updat
 ### Tech Stack
 - **Frontend**: React 18 with TypeScript, Vite
 - **Backend**: Node.js, Express, TypeScript
-- **Database**: SQLite with better-sqlite3
+- **Database**: PostgreSQL with pg driver
 - **Real-time**: Socket.IO for WebSocket communication
+- **Security**: Helmet, Compression, Rate Limiting
+- **Logging**: Structured JSON logging with Winston
+- **Authentication**: JWT with bcrypt
 - **Styling**: Custom CSS with responsive design
 
 ### Project Structure
@@ -41,13 +44,22 @@ restaurant2/
 ├── backend/
 │   ├── src/
 │   │   ├── db/
-│   │   │   └── database.ts          # Database initialization & seed data
+│   │   │   └── database.ts          # PostgreSQL connection pool & lifecycle
+│   │   ├── middleware/
+│   │   │   ├── auth.ts               # JWT authentication
+│   │   │   ├── errorHandler.ts      # Global error handling
+│   │   │   └── rateLimiter.ts       # Rate limiting configs
 │   │   ├── models/
 │   │   │   └── types.ts              # TypeScript interfaces
 │   │   ├── routes/
+│   │   │   ├── auth.ts               # Authentication endpoints
 │   │   │   ├── menu.ts               # Menu endpoints
 │   │   │   ├── orders.ts             # Order endpoints
+│   │   │   ├── sessions.ts           # Session management
+│   │   │   ├── tableAssignments.ts   # Table assignments
 │   │   │   └── tables.ts             # Table endpoints
+│   │   ├── utils/
+│   │   │   └── logger.ts             # Structured logging utility
 │   │   └── server.ts                 # Express server with Socket.IO
 │   ├── package.json
 │   └── tsconfig.json
@@ -226,11 +238,13 @@ The database is automatically seeded with:
 
 ## 🛠️ Technology Choices
 
-### Why SQLite?
-- Simple file-based database
-- No separate database server required
-- Perfect for development and small deployments
-- Easy to back up (single file)
+### Why PostgreSQL?
+- Production-grade relational database
+- ACID compliance and data integrity
+- Excellent performance and scalability
+- Rich feature set (JSON, arrays, full-text search)
+- Strong community and ecosystem
+- Perfect for production deployments
 
 ### Why Socket.IO?
 - Reliable real-time bidirectional communication

@@ -162,7 +162,7 @@ restaurant2/
 - **TypeScript**: Type-safe JavaScript
 - **React**: Component-based UI library
 - **Express**: Node.js web framework
-- **SQLite**: File-based SQL database
+- **PostgreSQL**: Production-grade relational database
 
 ### Order Status Flow
 ```
@@ -225,7 +225,11 @@ A: See [ARCHITECTURE.md](ARCHITECTURE.md) Scalability Considerations
 - Express (Web framework)
 - TypeScript (Language)
 - Socket.IO (Real-time)
-- better-sqlite3 (Database)
+- pg (PostgreSQL driver)
+- Helmet (Security middleware)
+- Compression (Response compression)
+- express-rate-limit (Rate limiting)
+- Winston (Structured logging)
 
 ### Frontend
 - React 18 (UI library)

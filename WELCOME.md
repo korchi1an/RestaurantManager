@@ -344,6 +344,6 @@ restaurant2/
 
 ---
 
-**Built with**: React • TypeScript • Express • Socket.IO • SQLite  
+**Built with**: React • TypeScript • Express • Socket.IO • PostgreSQL  
 **Status**: ✅ Complete and ready to run  
 **License**: MIT - Use freely!

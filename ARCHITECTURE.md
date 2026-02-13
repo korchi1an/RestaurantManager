@@ -18,10 +18,16 @@ This is a full-stack restaurant order management system with real-time updates u
 - **Express** - Web framework
 - **TypeScript** - Type safety
 - **Socket.IO** - WebSocket server
-- **better-sqlite3** - Database driver
+- **pg** - PostgreSQL database driver
+- **Helmet** - Security headers middleware
+- **Compression** - Response compression
+- **express-rate-limit** - Rate limiting
+- **Winston** - Structured logging
+- **JWT** - Authentication tokens
+- **bcrypt** - Password hashing
 
 ### Database
-- **SQLite** - Lightweight SQL database
+- **PostgreSQL** - Production-grade relational database
 
 ## Architecture Layers
 

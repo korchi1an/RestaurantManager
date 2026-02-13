@@ -41,8 +41,8 @@ git push -u origin main
 ```
 NODE_ENV=production
 PORT=5000
-DATABASE_PATH=/opt/render/project/data/restaurant.db
-JWT_SECRET=COPY_SECRET_FROM_BELOW
+DATABASE_URL=postgresql://user:password@host:port/database
+JWT_SECRET=your_secure_random_secret_here
 CORS_ORIGIN=https://restaurant-frontend.onrender.com
 LOG_LEVEL=info
 ```
@@ -50,18 +50,33 @@ LOG_LEVEL=info
 **Frontend Service Environment Variables:**
 ```
 VITE_API_URL=https://restaurant-backend.onrender.com/api
+VITE_WS_URL=wss://restaurant-backend.onrender.com
 ```
+
+**Important:** You'll need to create a PostgreSQL database first (see Step 2A below).
 
 7. Click **"Apply"** and wait ~5 minutes for deployment
 
-### Option B: Manual Setup (If Blueprint doesn't work)
+### Option B: Manual Setup
 
-#### Deploy Backend:
+#### Step 2A: Create PostgreSQL Database
+1. In Render Dashboard, click **"New +" → "PostgreSQL"**
+2. Configure:
+   - **Name:** `restaurant-database`
+   - **Database:** `restaurant`
+   - **User:** `restaurant_user` (or auto-generated)
+   - **Region:** Oregon (US West) - same as backend
+   - **Plan:** Free
+3. Click **"Create Database"**
+4. Wait for database to provision (~2 minutes)
+5. Copy the **"External Database URL"** (starts with `postgresql://`)
+
+#### Step 2B: Deploy Backend:
 1. Click **"New +" → "Web Service"**
 2. Connect **RestaurantManager** repository
 3. Configure:
    - **Name:** `restaurant-backend`
-   - **Region:** Oregon (US West) or Frankfurt (EU)
+   - **Region:** Oregon (US West) - same as database
    - **Branch:** `main`
    - **Root Directory:** `backend`
    - **Runtime:** Node
@@ -69,18 +84,21 @@ VITE_API_URL=https://restaurant-backend.onrender.com/api
    - **Start Command:** `npm start`
    - **Plan:** Free
 
-4. **Add Persistent Disk:**
-   - Scroll to "Disks" section
-   - Click "Add Disk"
-   - Name: `database`
-   - Mount Path: `/opt/render/project/data`
-   - Size: 1GB
+4. **Add Environment Variables:**
+   ```
+   NODE_ENV=production
+   PORT=5000
+   DATABASE_URL=<paste_your_postgresql_url_here>
+   JWT_SECRET=<generate_secure_random_string>
+   CORS_ORIGIN=https://restaurant-frontend.onrender.com
+   LOG_LEVEL=info
+   ```
 
-5. **Add Environment Variables** (from above)
+5. Click **"Create Web Service"**
 
-6. Click **"Create Web Service"**
+**Note:** No persistent disk needed with PostgreSQL!
 
-#### Deploy Frontend:
+#### Step 2C: Deploy Frontend:
 1. Click **"New +" → "Static Site"**
 2. Connect **RestaurantManager** repository
 3. Configure:
@@ -93,6 +111,7 @@ VITE_API_URL=https://restaurant-backend.onrender.com/api
 4. **Add Environment Variables:**
    ```
    VITE_API_URL=https://restaurant-backend.onrender.com/api
+   VITE_WS_URL=wss://restaurant-backend.onrender.com
    ```
 
 5. Click **"Create Static Site"**
