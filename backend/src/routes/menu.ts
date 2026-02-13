@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import pool from '../db/database';
 import { MenuItem } from '../models/types';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -10,7 +11,7 @@ router.get('/', async (req: Request, res: Response) => {
     const result = await pool.query('SELECT * FROM menu_items ORDER BY category, name');
     res.json(result.rows);
   } catch (error) {
-    console.error('Error fetching menu items:', error);
+    logger.error('MENU - Error fetching menu items', { error });
     res.status(500).json({ error: 'Failed to fetch menu items' });
   }
 });
@@ -21,7 +22,7 @@ router.get('/categories', async (req: Request, res: Response) => {
     const result = await pool.query('SELECT DISTINCT category FROM menu_items ORDER BY category');
     res.json(result.rows.map((row: any) => row.category));
   } catch (error) {
-    console.error('Error fetching categories:', error);
+    logger.error('MENU - Error fetching categories', { error });
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 });
@@ -35,7 +36,7 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
     res.json(result.rows[0]);
   } catch (error) {
-    console.error('Error fetching menu item:', error);
+    logger.error('MENU - Error fetching menu item', { error, menuItemId: req.params.id });
     res.status(500).json({ error: 'Failed to fetch menu item' });
   }
 });

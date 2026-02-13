@@ -3,6 +3,7 @@ import { pool } from '../db/database';
 import { Table } from '../models/types';
 import QRCode from 'qrcode';
 import { authenticate, authorize } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -62,7 +63,7 @@ router.get('/:tableNumber/qrcode', async (req: Request, res: Response) => {
       qrCode: qrCodeDataUrl
     });
   } catch (error) {
-    console.error('Error generating QR code:', error);
+    logger.error('TABLES - Error generating QR code', { error, tableNumber: req.params.tableNumber });
     res.status(500).json({ error: 'Failed to generate QR code' });
   }
 });
@@ -107,7 +108,7 @@ router.get('/:tableNumber/orders', async (req: Request, res: Response) => {
 
     res.json(formattedOrders);
   } catch (error) {
-    console.error('Error fetching table orders:', error);
+    logger.error('TABLES - Error fetching table orders', { error, tableNumber: req.params.tableNumber });
     res.status(500).json({ error: 'Failed to fetch table orders' });
   }
 });
@@ -128,7 +129,7 @@ router.get('/:tableNumber/unpaid-total', async (req: Request, res: Response) => 
       unpaidTotal: parseFloat(result.rows[0].unpaid_total) 
     });
   } catch (error) {
-    console.error('Error calculating unpaid total:', error);
+    logger.error('TABLES - Error calculating unpaid total', { error, tableNumber: req.params.tableNumber });
     res.status(500).json({ error: 'Failed to calculate unpaid total' });
   }
 });
@@ -150,7 +151,7 @@ router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitche
       message: `Marcate ${result.rowCount} comenzi ca plătite` 
     });
   } catch (error) {
-    console.error('Error marking orders as paid:', error);
+    logger.error('TABLES - Error marking orders as paid', { error, tableNumber: req.params.tableNumber });
     res.status(500).json({ error: 'Failed to mark orders as paid' });
   }
 });

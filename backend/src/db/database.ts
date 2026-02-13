@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import * as dotenv from 'dotenv';
+import logger from '../utils/logger';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -168,7 +169,7 @@ const initDb = async () => {
         );
       }
 
-      console.log('✓ Seeded menu items');
+      logger.info('DATABASE - Seeded menu items');
     }
 
     // Insert seed data for tables if empty
@@ -183,7 +184,7 @@ const initDb = async () => {
         );
       }
 
-      console.log('✓ Seeded tables');
+      logger.info('DATABASE - Seeded tables');
     }
 
     // Insert default employees if empty (for testing)
@@ -213,17 +214,15 @@ const initDb = async () => {
         );
       }
 
-      console.log('✓ Seeded default employees:');
-      console.log('  - Chef / kitchen123 (Kitchen)');
-      console.log('  - Ana / waiter123 (Waiter)');
-      console.log('  - Mihai / waiter123 (Waiter)');
-      console.log('  - Admin / admin123 (Administrator)');
-      console.log('  ⚠️  Change these passwords in production!');
+      logger.info('DATABASE - Seeded default employees', { 
+        employees: ['Chef (kitchen)', 'Ana (waiter)', 'Mihai (waiter)', 'Admin (admin)'] 
+      });
+      logger.warn('DATABASE - Default passwords in use - change in production!');
     }
 
-    console.log('✓ Database initialized');
+    logger.info('DATABASE - Database initialized successfully');
   } catch (error) {
-    console.error('Error initializing database:', error);
+    logger.error('DATABASE - Error initializing database', { error });
     throw error;
   } finally {
     client.release();

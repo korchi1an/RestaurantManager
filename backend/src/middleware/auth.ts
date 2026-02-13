@@ -57,7 +57,7 @@ export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction
       };
     } catch (error) {
       // Token invalid, but we'll allow the request anyway
-      console.log('Invalid token provided, continuing without auth');
+      logger.debug('AUTH - Invalid token provided in optional auth, continuing without auth');
     }
   }
 

@@ -3,6 +3,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db/database';
 import { AuthRequest, authenticate } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production-PLEASE';
@@ -59,7 +60,7 @@ router.post('/register', async (req: Request, res: Response) => {
       } 
     });
   } catch (error: any) {
-    console.error('Registration error:', error);
+    logger.error('AUTH - Registration error', { error, username: req.body.username });
     res.status(500).json({ error: 'Failed to create employee' });
   }
 });
@@ -119,7 +120,7 @@ router.post('/register-customer', async (req: Request, res: Response) => {
       } 
     });
   } catch (error: any) {
-    console.error('Customer registration error:', error);
+    logger.error('AUTH - Customer registration error', { error, email: req.body.email });
     res.status(500).json({ error: 'Failed to create account' });
   }
 });
@@ -200,7 +201,7 @@ router.post('/login', async (req: Request, res: Response) => {
       } 
     });
   } catch (error: any) {
-    console.error('Login error:', error);
+    logger.error('AUTH - Login error', { error, username: req.body.username, email: req.body.email });
     res.status(500).json({ error: 'Login failed' });
   }
 });
@@ -239,7 +240,7 @@ router.get('/me', authenticate, async (req: AuthRequest, res: Response) => {
 
     res.json({ user });
   } catch (error) {
-    console.error('Get user error:', error);
+    logger.error('AUTH - Get user error', { error, userId: req.user?.id });
     res.status(500).json({ error: 'Failed to get user info' });
   }
 });
@@ -255,7 +256,7 @@ router.get('/users', async (req: Request, res: Response) => {
 
     res.json({ users: result.rows });
   } catch (error) {
-    console.error('List employees error:', error);
+    logger.error('AUTH - List employees error', { error });
     res.status(500).json({ error: 'Failed to list employees' });
   }
 });

@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { pool } from '../db/database';
 import { Session, CreateSessionRequest, SessionWithOrders } from '../models/types';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -28,7 +29,7 @@ router.post('/', async (req: Request, res: Response) => {
       createdAt: new Date().toISOString()
     });
   } catch (error) {
-    console.error('Error creating session:', error);
+    logger.error('SESSIONS - Error creating session', { error, tableNumber: req.body.tableNumber });
     res.status(500).json({ error: 'Failed to create session' });
   }
 });
@@ -65,7 +66,7 @@ router.get('/table/:tableNumber', async (req: Request, res: Response) => {
 
     res.json(formattedSessions);
   } catch (error) {
-    console.error('Error fetching sessions:', error);
+    logger.error('SESSIONS - Error fetching sessions', { error, tableNumber: req.params.tableNumber });
     res.status(500).json({ error: 'Failed to fetch sessions' });
   }
 });
@@ -136,7 +137,7 @@ router.get('/:sessionId', async (req: Request, res: Response) => {
 
     res.json(sessionWithOrders);
   } catch (error) {
-    console.error('Error fetching session:', error);
+    logger.error('SESSIONS - Error fetching session', { error, sessionId: req.params.sessionId });
     res.status(500).json({ error: 'Failed to fetch session' });
   }
 });
@@ -158,7 +159,7 @@ router.post('/:sessionId/heartbeat', async (req: Request, res: Response) => {
 
     res.json({ success: true, lastActivity: new Date().toISOString() });
   } catch (error) {
-    console.error('Error updating session:', error);
+    logger.error('SESSIONS - Error updating session', { error, sessionId: req.params.sessionId });
     res.status(500).json({ error: 'Failed to update session' });
   }
 });
@@ -180,7 +181,7 @@ router.delete('/:sessionId', async (req: Request, res: Response) => {
 
     res.json({ success: true });
   } catch (error) {
-    console.error('Error ending session:', error);
+    logger.error('SESSIONS - Error ending session', { error, sessionId: req.params.sessionId });
     res.status(500).json({ error: 'Failed to end session' });
   }
 });
@@ -218,7 +219,7 @@ router.get('/:sessionId/orders', async (req: Request, res: Response) => {
 
     res.json(parsedOrders);
   } catch (error) {
-    console.error('Error fetching session orders:', error);
+    logger.error('SESSIONS - Error fetching session orders', { error, sessionId: req.params.sessionId });
     res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
@@ -241,7 +242,7 @@ router.post('/cleanup', async (req: Request, res: Response) => {
       deactivatedCount: result.rowCount 
     });
   } catch (error) {
-    console.error('Error cleaning up sessions:', error);
+    logger.error('SESSIONS - Error cleaning up sessions', { error });
     res.status(500).json({ error: 'Failed to cleanup sessions' });
   }
 });

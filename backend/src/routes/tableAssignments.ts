@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { pool } from '../db/database';
 import { AuthRequest } from '../middleware/auth';
+import logger from '../utils/logger';
 
 const router = Router();
 
@@ -23,7 +24,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 
     res.json(result.rows);
   } catch (error: any) {
-    console.error('Error fetching table assignments:', error);
+    logger.error('TABLE_ASSIGNMENTS - Error fetching table assignments', { error });
     res.status(500).json({ error: 'Failed to fetch table assignments' });
   }
 });
@@ -49,7 +50,7 @@ router.get('/my-tables', async (req: AuthRequest, res: Response) => {
 
     res.json(result.rows);
   } catch (error: any) {
-    console.error('Error fetching waiter tables:', error);
+    logger.error('TABLE_ASSIGNMENTS - Error fetching waiter tables', { error, waiterId: req.user?.id });
     res.status(500).json({ error: 'Failed to fetch assigned tables' });
   }
 });
@@ -107,7 +108,7 @@ router.patch('/:tableId/assign', async (req: AuthRequest, res: Response) => {
 
     res.json(tableResult.rows[0]);
   } catch (error: any) {
-    console.error('Error assigning table:', error);
+    logger.error('TABLE_ASSIGNMENTS - Error assigning table', { error, tableId: req.params.tableId });
     res.status(500).json({ error: 'Failed to assign table' });
   }
 });
@@ -141,7 +142,7 @@ router.patch('/:tableId/unassign', async (req: AuthRequest, res: Response) => {
 
     res.json(tableResult.rows[0]);
   } catch (error: any) {
-    console.error('Error unassigning table:', error);
+    logger.error('TABLE_ASSIGNMENTS - Error unassigning table', { error, tableId: req.params.tableId });
     res.status(500).json({ error: 'Failed to unassign table' });
   }
 });
@@ -162,7 +163,7 @@ router.get('/waiters', async (req: AuthRequest, res: Response) => {
 
     res.json(result.rows);
   } catch (error: any) {
-    console.error('Error fetching waiters:', error);
+    logger.error('TABLE_ASSIGNMENTS - Error fetching waiters', { error });
     res.status(500).json({ error: 'Failed to fetch waiters' });
   }
 });
