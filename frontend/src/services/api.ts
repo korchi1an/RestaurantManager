@@ -20,7 +20,9 @@ export class ApiError extends Error {
 // Logger for production debugging
 const logger = {
   error: (message: string, error: any) => {
-    console.error(`[API Error] ${message}`, error);
+    if ((import.meta as any).env?.DEV) {
+      console.error(`[API Error] ${message}`, error);
+    }
     // In production, send to error tracking service (e.g., Sentry)
     if ((import.meta as any).env?.PROD) {
       // window.Sentry?.captureException(error);

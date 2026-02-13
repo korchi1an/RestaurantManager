@@ -45,10 +45,8 @@ const Customer: React.FC = () => {
           
           // Create new session for this QR code scan
           const session = await sessionService.createSession(tableNum);
-          console.log('QR Code scanned - Session created:', session.sessionId);
           setSessionId(session.sessionId);
         } catch (error) {
-          console.error('Error creating session from QR code:', error);
         }
       };
       
@@ -115,7 +113,7 @@ const Customer: React.FC = () => {
           setSessionOrders(sorted);
         }
       } catch (error) {
-        console.error('Error fetching session orders:', error);
+        // Silently fail - orders will show empty
       }
     };
 
@@ -149,7 +147,7 @@ const Customer: React.FC = () => {
       setMenuItems(itemsWithNumberPrices);
       setCategories(['All', ...cats]);
     } catch (error) {
-      console.error('Error loading menu:', error);
+      alert('Failed to load menu. Please refresh the page.');
     }
   };
 
@@ -199,13 +197,11 @@ const Customer: React.FC = () => {
 
       // Create new session for new table
       const session = await sessionService.createSession(newTableNumber);
-      console.log('Session created:', session.sessionId);
       setSessionId(session.sessionId);
       setTableNumber(newTableNumber);
       setCart([]);
       setCurrentOrder(null);
     } catch (error) {
-      console.error('Error changing table:', error);
       alert('Failed to switch table');
     }
   };
@@ -218,18 +214,12 @@ const Customer: React.FC = () => {
 
     setLoading(true);
     try {
-      console.log('📋 [CUSTOMER] Starting order submission. Cart:', cart.length, 'items');
-      
       // Create session if not exists
       let currentSessionId = sessionId;
       if (!currentSessionId) {
-        console.log('🔄 [CUSTOMER] No session exists. Creating new session for table:', tableNumber);
         const session = await sessionService.createSession(tableNumber);
         currentSessionId = session.sessionId;
         setSessionId(currentSessionId);
-        console.log('✅ [CUSTOMER] Session created:', currentSessionId);
-      } else {
-        console.log('✅ [CUSTOMER] Using existing session:', currentSessionId);
       }
 
       const orderData = {
@@ -240,12 +230,8 @@ const Customer: React.FC = () => {
           quantity: item.quantity
         }))
       };
-
-      console.log('🚀 [CUSTOMER] Submitting order:', orderData);
-      console.log('🚀 [CUSTOMER] API Base URL:', (import.meta as any).env?.VITE_API_URL || '/api');
       
       const order = await api.createOrder(orderData);
-      console.log('✅ [CUSTOMER] Order created successfully:', order);
       
       // Add to session orders list at the top
       setSessionOrders(prev => [order, ...prev]);
@@ -257,13 +243,6 @@ const Customer: React.FC = () => {
       
       // Keep session active for additional orders
     } catch (error: any) {
-      console.error('❌ [CUSTOMER] Error submitting order:', error);
-      console.error('❌ [CUSTOMER] Error details:', {
-        message: error.message,
-        statusCode: error.statusCode,
-        details: error.details,
-        stack: error.stack
-      });
       const errorMessage = error.response?.data?.error || error.message || 'Failed to submit order';
       alert('❌ Order failed: ' + errorMessage);
     } finally {

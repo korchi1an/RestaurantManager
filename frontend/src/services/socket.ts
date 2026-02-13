@@ -28,12 +28,16 @@ class SocketService {
     });
     
     this.socket.on('connect', () => {
-      console.log('Connected to Socket.IO server');
+      if ((import.meta as any).env?.DEV) {
+        console.log('Connected to Socket.IO server');
+      }
       this.isConnected = true;
     });
 
     this.socket.on('disconnect', () => {
-      console.log('Disconnected from Socket.IO server');
+      if ((import.meta as any).env?.DEV) {
+        console.log('Disconnected from Socket.IO server');
+      }
       this.isConnected = false;
     });
 

@@ -71,7 +71,7 @@ const Kitchen: React.FC = () => {
       const activeOrders = ordersWithNumbers.filter(order => order.status !== 'Served');
       setOrders(activeOrders);
     } catch (error) {
-      console.error('Error loading orders:', error);
+      alert('Failed to load orders. Please refresh the page.');
     }
   };
 
@@ -97,7 +97,6 @@ const Kitchen: React.FC = () => {
     try {
       await api.updateOrderStatus(orderId, 'Ready');
     } catch (error) {
-      console.error('Error updating order:', error);
       alert('Failed to update order status');
     } finally {
       setLoading(false);
@@ -109,7 +108,6 @@ const Kitchen: React.FC = () => {
     try {
       await api.updateOrderStatus(orderId, 'Preparing');
     } catch (error) {
-      console.error('Error updating order:', error);
       alert('Failed to update order status');
     } finally {
       setLoading(false);

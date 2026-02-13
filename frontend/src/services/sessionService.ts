@@ -74,7 +74,7 @@ class SessionService {
       });
       sessionStorage.removeItem('currentSession');
     } catch (error) {
-      console.error('Error ending session:', error);
+      // Silently fail - session will remain in storage
     }
   }
 
@@ -84,7 +84,7 @@ class SessionService {
         method: 'POST'
       });
     } catch (error) {
-      console.error('Error sending heartbeat:', error);
+      // Silently fail - heartbeat is not critical
     }
   }
 

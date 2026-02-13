@@ -30,7 +30,7 @@ const QRCodes: React.FC = () => {
       const codes = await Promise.all(qrCodePromises) as QRCodeData[];
       setQrCodes(codes);
     } catch (error) {
-      console.error('Error loading QR codes:', error);
+      alert('Failed to load QR codes. Please refresh the page.');
     } finally {
       setLoading(false);
     }
