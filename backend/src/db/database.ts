@@ -15,10 +15,51 @@ if (!connectionString) {
 const pool = new Pool({
   connectionString,
   ssl: { rejectUnauthorized: false },
+  max: 20, // Maximum number of clients in the pool
+  idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
+  connectionTimeoutMillis: 5000, // Return an error after 5 seconds if connection could not be established
 });
+
+// Handle pool errors
+pool.on('error', (err, client) => {
+  logger.error('DATABASE - Unexpected error on idle client', { error: err });
+});
+
+// Handle pool connection events
+pool.on('connect', (client) => {
+  logger.info('DATABASE - New client connected to pool');
+});
+
+pool.on('acquire', (client) => {
+  logger.debug('DATABASE - Client acquired from pool');
+});
+
+pool.on('remove', (client) => {
+  logger.info('DATABASE - Client removed from pool');
+});
+
+// Test connection on startup
+const testConnection = async () => {
+  try {
+    const client = await pool.connect();
+    await client.query('SELECT NOW()');
+    client.release();
+    logger.info('DATABASE - Connection test successful');
+    return true;
+  } catch (error) {
+    logger.error('DATABASE - Connection test failed', { error });
+    return false;
+  }
+};
 
 // Create tables
 const initDb = async () => {
+  // Test connection first
+  const connectionOk = await testConnection();
+  if (!connectionOk) {
+    throw new Error('Failed to connect to database');
+  }
+
   const client = await pool.connect();
   
   try {
