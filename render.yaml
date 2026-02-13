@@ -13,12 +13,12 @@ services:
         value: production
       - key: PORT
         value: 10000
-      - key: DATABASE_PATH
-        value: ./restaurant.db
+      - key: DATABASE_URL
+        sync: false
       - key: LOG_LEVEL
         value: info
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: CORS_ORIGIN
         value: https://restaurant-frontend-85q6.onrender.com
       - key: FRONTEND_URL
