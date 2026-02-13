@@ -72,7 +72,7 @@ const QRCodes: React.FC = () => {
           <li>Printează aceste coduri QR și plasează-le pe fiecare masă</li>
           <li>Clienții pot scana codul QR pentru a selecta automat masa lor</li>
           <li>Mai mulți clienți la aceeași masă vor avea sesiuni separate</li>
-          <li>Fiecare cod QR indică spre: <code>http://localhost:3000/table/[număr]</code></li>
+          <li>Fiecare cod QR indică spre: <code>{window.location.origin}/table/[număr]</code></li>
         </ul>
       </div>
 

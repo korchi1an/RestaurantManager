@@ -15,7 +15,10 @@ class SocketService {
     }
 
     // Get backend URL from environment variable (removes /api suffix for socket connection)
-    const SOCKET_URL = (import.meta as any).env?.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    // In production, VITE_WS_URL should be set, otherwise derive from VITE_API_URL
+    const SOCKET_URL = (import.meta as any).env?.VITE_WS_URL || 
+                       (import.meta as any).env?.VITE_API_URL?.replace('/api', '') || 
+                       window.location.origin;
 
     this.socket = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],

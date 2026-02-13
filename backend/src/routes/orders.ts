@@ -8,10 +8,11 @@ const router = Router();
 
 // GET /api/orders - Get all orders (Kitchen and Waiter only)
 router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), async (req: AuthRequest, res: Response) => {
+  const userRole = req.user?.role;
+  const userId = req.user?.id;
+  
   try {
     const { status } = req.query;
-    const userRole = req.user?.role;
-    const userId = req.user?.id;
     logger.info('ORDER FETCH - User fetching orders', { userId, userRole, statusFilter: status });
     
     let query = `
