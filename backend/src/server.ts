@@ -2,9 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
-// TODO: Run 'npm install' to install these packages
-// import helmet from 'helmet';
-// import compression from 'compression';
+import helmet from 'helmet';
+import compression from 'compression';
 import menuRoutes from './routes/menu';
 import ordersRoutes from './routes/orders';
 import tablesRoutes from './routes/tables';
@@ -26,12 +25,11 @@ const io = new Server(httpServer, {
 });
 
 // Security middleware
-// TODO: Uncomment after running 'npm install'
-// app.use(helmet({
-//   contentSecurityPolicy: false, // Disable for Socket.IO
-//   crossOriginEmbedderPolicy: false,
-// }));
-// app.use(compression()); // Compress responses
+app.use(helmet({
+  contentSecurityPolicy: false, // Disable for Socket.IO
+  crossOriginEmbedderPolicy: false,
+}));
+app.use(compression()); // Compress responses
 
 // CORS
 app.use(cors({
