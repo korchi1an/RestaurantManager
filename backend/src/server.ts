@@ -103,13 +103,31 @@ io.on('connection', (socket) => {
   });
 });
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({ 
+// Health check with database connectivity test
+app.get('/health', async (req, res) => {
+  const healthcheck = {
     status: 'ok',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV || 'development',
+    database: 'unknown'
+  };
+
+  try {
+    // Test database connection
+    const result = await pool.query('SELECT NOW() as current_time');
+    healthcheck.database = 'connected';
+    healthcheck.status = 'healthy';
+    
+    res.status(200).json(healthcheck);
+  } catch (error) {
+    logger.error('HEALTH CHECK - Database connection failed', { error });
+    healthcheck.database = 'disconnected';
+    healthcheck.status = 'unhealthy';
+    
+    // Return 503 Service Unavailable if database is down
+    res.status(503).json(healthcheck);
+  }
 });
 
 // 404 handler
