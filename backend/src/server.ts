@@ -14,6 +14,7 @@ import { authenticate, authorize, optionalAuth } from './middleware/auth';
 import { apiLimiter, orderLimiter, sessionLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 import logger from './utils/logger';
+import { pool } from './db/database';
 
 const app = express();
 const httpServer = createServer(app);
@@ -132,6 +133,70 @@ if (process.env.NODE_ENV !== 'test') {
     logger.info(`✓ Socket.IO server ready`);
   });
 }
+
+// Graceful shutdown handler
+const gracefulShutdown = async (signal: string) => {
+  logger.info(`${signal} signal received: closing HTTP server`);
+  
+  // Close the HTTP server (stops accepting new connections)
+  httpServer.close(async () => {
+    logger.info('HTTP server closed');
+    
+    try {
+      // Close Socket.IO connections
+      io.close(() => {
+        logger.info('Socket.IO server closed');
+      });
+      
+      // Close database pool
+      await pool.end();
+      logger.info('Database pool closed');
+      
+      logger.info('Graceful shutdown completed');
+      process.exit(0);
+    } catch (error) {
+      logger.error('Error during graceful shutdown', { error });
+      process.exit(1);
+    }
+  });
+  
+  // Force shutdown after 30 seconds if graceful shutdown fails
+  setTimeout(() => {
+    logger.error('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 30000);
+};
+
+// Handle graceful shutdown signals
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  logger.error('UNHANDLED REJECTION - Unhandled Promise Rejection detected', {
+    reason: reason?.message || reason,
+    stack: reason?.stack,
+    promise: promise.toString()
+  });
+  
+  // In production, you might want to restart the process
+  if (process.env.NODE_ENV === 'production') {
+    logger.error('Exiting due to unhandled promise rejection');
+    gracefulShutdown('UNHANDLED_REJECTION');
+  }
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error: Error) => {
+  logger.error('UNCAUGHT EXCEPTION - Fatal error detected', {
+    message: error.message,
+    stack: error.stack
+  });
+  
+  // Uncaught exceptions are fatal - we must exit
+  logger.error('Process will exit due to uncaught exception');
+  gracefulShutdown('UNCAUGHT_EXCEPTION');
+});
 
 // Export app for testing
 export default app;

@@ -49,15 +49,41 @@ export const errorHandler = (
     });
   }
 
-  // Handle database errors
-  if (err.message.includes('SQLITE')) {
-    return res.status(500).json({
-      error: 'Database error occurred',
-      ...(process.env.NODE_ENV === 'development' && { 
-        message: err.message,
-        stack: err.stack 
-      })
-    });
+  // Handle PostgreSQL database errors
+  if ((err as any).code) {
+    const pgError = err as any;
+    // Common PostgreSQL error codes
+    switch (pgError.code) {
+      case '23505': // unique_violation
+        return res.status(409).json({
+          error: 'Duplicate entry - this record already exists',
+          ...(process.env.NODE_ENV === 'development' && { detail: pgError.detail })
+        });
+      case '23503': // foreign_key_violation
+        return res.status(400).json({
+          error: 'Invalid reference - related record does not exist',
+          ...(process.env.NODE_ENV === 'development' && { detail: pgError.detail })
+        });
+      case '23502': // not_null_violation
+        return res.status(400).json({
+          error: 'Missing required field',
+          ...(process.env.NODE_ENV === 'development' && { detail: pgError.detail })
+        });
+      case 'ECONNREFUSED':
+      case '08006': // connection_failure
+        return res.status(503).json({
+          error: 'Database temporarily unavailable',
+          ...(process.env.NODE_ENV === 'development' && { message: pgError.message })
+        });
+      default:
+        return res.status(500).json({
+          error: 'Database error occurred',
+          ...(process.env.NODE_ENV === 'development' && { 
+            message: pgError.message,
+            code: pgError.code
+          })
+        });
+    }
   }
 
   // Handle JWT errors
