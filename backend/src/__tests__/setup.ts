@@ -13,6 +13,6 @@ afterAll(async () => {
 
 // Clean up test data before each test
 beforeEach(async () => {
-  // Clean up any test users
-  await pool.query("DELETE FROM users WHERE email LIKE '%test%'");
+  // Clean up any test customers
+  await pool.query("DELETE FROM customers WHERE email LIKE '%test%'");
 });

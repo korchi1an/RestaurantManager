@@ -300,27 +300,13 @@ const initDb = async () => {
       logger.warn('DATABASE - Default passwords in use - change in production!');
     }
 
-    // Copy employees to users table for backward compatibility
-    const userCountResult = await client.query('SELECT COUNT(*) as count FROM users');
-    const userCount = parseInt(userCountResult.rows[0].count);
+    // Assign waiters to tables using tables.waiter_id field
+    const assignedTablesResult = await client.query('SELECT COUNT(*) as count FROM tables WHERE waiter_id IS NOT NULL');
+    const assignedTablesCount = parseInt(assignedTablesResult.rows[0].count);
     
-    if (userCount === 0) {
-      await client.query(`
-        INSERT INTO users (id, name, role, created_at, last_login)
-        SELECT id, username, role, created_at, last_login
-        FROM employees
-      `);
-      
-      logger.info('DATABASE - Copied employees to users table');
-    }
-
-    // Assign waiters to tables (each waiter gets 5 tables)
-    const assignmentCountResult = await client.query('SELECT COUNT(*) as count FROM table_assignments');
-    const assignmentCount = parseInt(assignmentCountResult.rows[0].count);
-    
-    if (assignmentCount === 0) {
-      // Get waiter IDs
-      const waitersResult = await client.query(`SELECT id, name FROM users WHERE role = 'waiter' ORDER BY id`);
+    if (assignedTablesCount === 0) {
+      // Get waiter IDs from employees table
+      const waitersResult = await client.query(`SELECT id, username FROM employees WHERE role = 'waiter' ORDER BY id`);
       const waiters = waitersResult.rows;
       
       if (waiters.length > 0) {
@@ -328,16 +314,12 @@ const initDb = async () => {
         for (let i = 1; i <= 10; i++) {
           const waiter = waiters[(i - 1) % waiters.length]; // Round-robin assignment
           await client.query(
-            `INSERT INTO table_assignments (user_id, table_number, assigned_at) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
-            [waiter.id, i]
-          );
-          await client.query(
-            `INSERT INTO waiter_assignments (waiter_id, table_number, assigned_at) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
+            `UPDATE tables SET waiter_id = $1 WHERE table_number = $2`,
             [waiter.id, i]
           );
         }
         
-        logger.info('DATABASE - Assigned tables to waiters');
+        logger.info('DATABASE - Assigned waiters to tables using waiter_id field');
       }
     }
 

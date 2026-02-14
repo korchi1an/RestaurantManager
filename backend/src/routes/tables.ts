@@ -163,24 +163,24 @@ router.post('/:tableNumber/call-waiter', async (req: Request, res: Response) => 
     const { tableNumber } = req.params;
     const { customerName } = req.body;
 
-    // Verify table exists
-    const result = await pool.query('SELECT * FROM tables WHERE table_number = $1', [tableNumber]);
+    // Get table info and assigned waiter
+    const result = await pool.query(`
+      SELECT t.*, e.id as waiter_id, e.username as waiter_name
+      FROM tables t
+      LEFT JOIN employees e ON t.waiter_id = e.id
+      WHERE t.table_number = $1
+    `, [tableNumber]);
+    
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Table not found' });
     }
 
-    // Get waiters assigned to this table
-    const assignmentResult = await pool.query(`
-      SELECT ta.user_id, u.name
-      FROM table_assignments ta
-      JOIN users u ON ta.user_id = u.id
-      WHERE ta.table_number = $1
-    `, [tableNumber]);
+    const table = result.rows[0];
 
     logger.info('WAITER CALL', { 
       tableNumber, 
       customerName: customerName || 'Guest',
-      assignedWaiters: assignmentResult.rows.length 
+      assignedWaiter: table.waiter_id ? { id: table.waiter_id, name: table.waiter_name } : null
     });
 
     // Safety check: Verify SocketManager is initialized
@@ -197,13 +197,13 @@ router.post('/:tableNumber/call-waiter', async (req: Request, res: Response) => 
       tableNumber: parseInt(tableNumber),
       customerName: customerName || 'Guest',
       timestamp: new Date().toISOString(),
-      assignedWaiters: assignmentResult.rows.map(r => ({ id: r.user_id, name: r.name }))
+      assignedWaiter: table.waiter_id ? { id: table.waiter_id, name: table.waiter_name } : null
     });
 
     res.json({ 
       success: true, 
       message: 'Waiter has been notified',
-      assignedWaiters: assignmentResult.rows.length
+      assignedWaiter: table.waiter_id ? table.waiter_name : 'No waiter assigned'
     });
   } catch (error) {
     logger.error('TABLES - Error calling waiter', { 

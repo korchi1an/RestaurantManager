@@ -81,7 +81,7 @@ describe('Authentication API', () => {
         });
 
       // Check database directly
-      const result = await pool.query('SELECT password_hash FROM users WHERE email = $1', ['hashtest@test.com']);
+      const result = await pool.query('SELECT password_hash FROM customers WHERE email = $1', ['hashtest@test.com']);
       const user = result.rows[0] as { password_hash: string };
 
       expect(user.password_hash).toBeDefined();
