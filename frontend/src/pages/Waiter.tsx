@@ -110,8 +110,7 @@ const Waiter: React.FC = () => {
         setWaiterCall({ tableNumber: data.tableNumber, customerName: data.customerName });
         showNotification(`🔔 Table ${data.tableNumber} is calling! Customer: ${data.customerName}`);
         playNotificationSound();
-        // Auto-hide after 10 seconds
-        setTimeout(() => setWaiterCall(null), 10000);
+        // Alert stays visible until manually closed
       }
     });
 
