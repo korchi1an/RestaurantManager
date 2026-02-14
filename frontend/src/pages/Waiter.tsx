@@ -12,7 +12,7 @@ const Waiter: React.FC = () => {
   const [tableUnpaidTotals, setTableUnpaidTotals] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<string>('');
-  const [waiterCall, setWaiterCall] = useState<{ tableNumber: number; customerName: string } | null>(null);
+  const [waiterCalls, setWaiterCalls] = useState<{ tableNumber: number; customerName: string; timestamp: string }[]>([]);
 
   // Use ref to access latest assignedTables in socket listener
   const assignedTablesRef = React.useRef<any[]>([]);
@@ -107,9 +107,13 @@ const Waiter: React.FC = () => {
       }
       
       if (isAssigned) {
-        setWaiterCall({ tableNumber: data.tableNumber, customerName: data.customerName });
+        setWaiterCalls(prev => [...prev, { 
+          tableNumber: data.tableNumber, 
+          customerName: data.customerName,
+          timestamp: data.timestamp || new Date().toISOString()
+        }]);
         playNotificationSound();
-        // Alert stays visible until manually closed
+        // Alerts stack and stay visible until manually closed
       }
     });
 
@@ -244,13 +248,17 @@ const Waiter: React.FC = () => {
         </div>
       </header>
 
-      {waiterCall && (
-        <div className="waiter-call-alert">
-          <div className="alert-content">
-            🔔 <strong>Table {waiterCall.tableNumber} is calling!</strong>
-            <span>Customer: {waiterCall.customerName}</span>
-            <button onClick={() => setWaiterCall(null)}>✕</button>
-          </div>
+      {waiterCalls.length > 0 && (
+        <div className="waiter-calls-container">
+          {waiterCalls.map((call, index) => (
+            <div key={`${call.tableNumber}-${call.timestamp}`} className="waiter-call-alert">
+              <div className="alert-content">
+                🔔 <strong>Table {call.tableNumber} is calling!</strong>
+                <span>Customer: {call.customerName}</span>
+                <button onClick={() => setWaiterCalls(prev => prev.filter((_, i) => i !== index))}>✕</button>
+              </div>
+            </div>
+          ))}
         </div>
       )}
 

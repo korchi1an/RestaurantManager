@@ -40,12 +40,18 @@
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+.waiter-calls-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
 .waiter-call-alert {
   background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
   color: white;
   padding: 1rem 1.5rem;
   border-radius: 12px;
-  margin-bottom: 1.5rem;
   box-shadow: 0 4px 16px rgba(255, 107, 107, 0.4);
   animation: pulse 2s ease-in-out infinite;
 }
