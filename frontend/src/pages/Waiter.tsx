@@ -14,6 +14,13 @@ const Waiter: React.FC = () => {
   const [notification, setNotification] = useState<string>('');
   const [waiterCall, setWaiterCall] = useState<{ tableNumber: number; customerName: string } | null>(null);
 
+  // Use ref to access latest assignedTables in socket listener
+  const assignedTablesRef = React.useRef<any[]>([]);
+  
+  useEffect(() => {
+    assignedTablesRef.current = assignedTables;
+  }, [assignedTables]);
+
   useEffect(() => {
     loadAssignedTables();
     loadOrders();
@@ -88,8 +95,17 @@ const Waiter: React.FC = () => {
     });
 
     socketService.onWaiterCalled((data) => {
-      // Check if this waiter is assigned to the called table
-      const isAssigned = assignedTables.some(table => table.table_number === data.tableNumber);
+      // Check if this waiter is assigned to the called table (use ref for latest value)
+      const isAssigned = assignedTablesRef.current.some(table => table.table_number === data.tableNumber);
+      
+      if ((import.meta as any).env?.DEV) {
+        console.log('Waiter called event received:', {
+          tableNumber: data.tableNumber,
+          assignedTables: assignedTablesRef.current.map(t => t.table_number),
+          isAssigned
+        });
+      }
+      
       if (isAssigned) {
         setWaiterCall({ tableNumber: data.tableNumber, customerName: data.customerName });
         showNotification(`🔔 Table ${data.tableNumber} is calling! Customer: ${data.customerName}`);
@@ -105,7 +121,7 @@ const Waiter: React.FC = () => {
       socketService.off('waiter-called');
       socketService.disconnect();
     };
-  }, [assignedTables]);
+  }, []); // Remove assignedTables dependency - we use ref instead
 
   const loadAssignedTables = async () => {
     try {
