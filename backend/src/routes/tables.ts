@@ -183,6 +183,12 @@ router.post('/:tableNumber/call-waiter', async (req: Request, res: Response) => 
       assignedWaiters: assignmentResult.rows.length 
     });
 
+    // Safety check: Verify SocketManager is initialized
+    if (!SocketManager.isInitialized()) {
+      logger.error('WAITER CALL - SocketManager not initialized');
+      return res.status(500).json({ error: 'Server initialization error. Please try again.' });
+    }
+
     // Get Socket.IO instance from SocketManager
     const io = SocketManager.getIO();
     
