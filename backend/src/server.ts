@@ -15,6 +15,7 @@ import { apiLimiter, orderLimiter, sessionLimiter } from './middleware/rateLimit
 import { errorHandler } from './middleware/errorHandler';
 import logger from './utils/logger';
 import { pool } from './db/database';
+import SocketManager from './utils/socketManager';
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,6 +25,9 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE']
   }
 });
+
+// Initialize SocketManager with io instance
+SocketManager.setIO(io);
 
 // Security middleware
 app.use(helmet({
@@ -216,6 +220,5 @@ process.on('uncaughtException', (error: Error) => {
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
-// Export app and io for testing and routes
+// Export app for testing
 export default app;
-export { io };

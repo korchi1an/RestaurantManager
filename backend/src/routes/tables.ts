@@ -4,6 +4,7 @@ import { Table } from '../models/types';
 import QRCode from 'qrcode';
 import { authenticate, authorize } from '../middleware/auth';
 import logger from '../utils/logger';
+import SocketManager from '../utils/socketManager';
 
 const router = Router();
 
@@ -182,8 +183,8 @@ router.post('/:tableNumber/call-waiter', async (req: Request, res: Response) => 
       assignedWaiters: assignmentResult.rows.length 
     });
 
-    // Import io dynamically to avoid circular dependency
-    const { io } = await import('../server');
+    // Get Socket.IO instance from SocketManager
+    const io = SocketManager.getIO();
     
     // Emit to all waiters (they'll filter based on their assignments)
     io.emit('waiter-called', {
@@ -199,7 +200,11 @@ router.post('/:tableNumber/call-waiter', async (req: Request, res: Response) => 
       assignedWaiters: assignmentResult.rows.length
     });
   } catch (error) {
-    logger.error('TABLES - Error calling waiter', { error, tableNumber: req.params.tableNumber });
+    logger.error('TABLES - Error calling waiter', { 
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorStack: error instanceof Error ? error.stack : undefined,
+      tableNumber: req.params.tableNumber 
+    });
     res.status(500).json({ error: 'Failed to call waiter' });
   }
 });
