@@ -90,6 +90,45 @@ const initDb = async () => {
     // Drop old users table if it exists (migration from old schema)
     await client.query(`DROP TABLE IF EXISTS users CASCADE`);
 
+    // Create users table as an alias/view of employees for backward compatibility
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        email VARCHAR(255) UNIQUE,
+        password_hash VARCHAR(255),
+        role VARCHAR(50) NOT NULL CHECK(role IN ('kitchen', 'waiter', 'admin', 'customer')),
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+      )
+    `);
+
+    // Table Assignments - which waiters are assigned to which tables
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS table_assignments (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        table_number INTEGER NOT NULL,
+        assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (table_number) REFERENCES tables(table_number) ON DELETE CASCADE,
+        UNIQUE(user_id, table_number)
+      )
+    `);
+
+    // Waiter Assignments - another name for table assignments (for compatibility)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS waiter_assignments (
+        id SERIAL PRIMARY KEY,
+        waiter_id INTEGER NOT NULL,
+        table_number INTEGER NOT NULL,
+        assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (waiter_id) REFERENCES users(id) ON DELETE CASCADE,
+        FOREIGN KEY (table_number) REFERENCES tables(table_number) ON DELETE CASCADE,
+        UNIQUE(waiter_id, table_number)
+      )
+    `);
+
     // Menu Items Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS menu_items (
@@ -259,6 +298,47 @@ const initDb = async () => {
         employees: ['Chef (kitchen)', 'Ana (waiter)', 'Mihai (waiter)', 'Admin (admin)'] 
       });
       logger.warn('DATABASE - Default passwords in use - change in production!');
+    }
+
+    // Copy employees to users table for backward compatibility
+    const userCountResult = await client.query('SELECT COUNT(*) as count FROM users');
+    const userCount = parseInt(userCountResult.rows[0].count);
+    
+    if (userCount === 0) {
+      await client.query(`
+        INSERT INTO users (id, name, role, created_at, last_login)
+        SELECT id, username, role, created_at, last_login
+        FROM employees
+      `);
+      
+      logger.info('DATABASE - Copied employees to users table');
+    }
+
+    // Assign waiters to tables (each waiter gets 5 tables)
+    const assignmentCountResult = await client.query('SELECT COUNT(*) as count FROM table_assignments');
+    const assignmentCount = parseInt(assignmentCountResult.rows[0].count);
+    
+    if (assignmentCount === 0) {
+      // Get waiter IDs
+      const waitersResult = await client.query(`SELECT id, name FROM users WHERE role = 'waiter' ORDER BY id`);
+      const waiters = waitersResult.rows;
+      
+      if (waiters.length > 0) {
+        // Assign tables to waiters (Ana gets tables 1-5, Mihai gets tables 6-10)
+        for (let i = 1; i <= 10; i++) {
+          const waiter = waiters[(i - 1) % waiters.length]; // Round-robin assignment
+          await client.query(
+            `INSERT INTO table_assignments (user_id, table_number, assigned_at) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
+            [waiter.id, i]
+          );
+          await client.query(
+            `INSERT INTO waiter_assignments (waiter_id, table_number, assigned_at) VALUES ($1, $2, CURRENT_TIMESTAMP)`,
+            [waiter.id, i]
+          );
+        }
+        
+        logger.info('DATABASE - Assigned tables to waiters');
+      }
     }
 
     logger.info('DATABASE - Database initialized successfully');
