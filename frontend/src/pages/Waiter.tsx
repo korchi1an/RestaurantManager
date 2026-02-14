@@ -108,7 +108,6 @@ const Waiter: React.FC = () => {
       
       if (isAssigned) {
         setWaiterCall({ tableNumber: data.tableNumber, customerName: data.customerName });
-        showNotification(`🔔 Table ${data.tableNumber} is calling! Customer: ${data.customerName}`);
         playNotificationSound();
         // Alert stays visible until manually closed
       }
