@@ -76,6 +76,12 @@ class SocketService {
     }
   }
 
+  onOrderCancelled(callback: (data: { orderId: number }) => void) {
+    if (this.socket) {
+      this.socket.on('orderCancelled', callback);
+    }
+  }
+
   onWaiterCalled(callback: (data: { tableNumber: number; customerName: string; timestamp: string; assignedWaiters: any[] }) => void) {
     if (this.socket) {
       this.socket.on('waiter-called', callback);

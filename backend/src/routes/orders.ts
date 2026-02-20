@@ -326,7 +326,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
     await pool.query('DELETE FROM orders WHERE id = $1', [orderId]);
     logger.info('ORDER CANCEL - Order cancelled successfully', { orderId, tableNumber: order.table_number });
     
-    res.json({ success: true, message: 'Order cancelled successfully' });
+    res.json({ success: true, message: 'Order cancelled successfully', orderId: parseInt(orderId) });
   } catch (error) {
     logger.error('ORDER CANCEL - Error cancelling order', { error, orderId: req.params.id });
     res.status(500).json({ error: 'Failed to cancel order' });

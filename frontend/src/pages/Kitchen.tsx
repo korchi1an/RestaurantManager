@@ -48,9 +48,15 @@ const Kitchen: React.FC = () => {
       }
     });
 
+    socketService.onOrderCancelled((data: { orderId: number }) => {
+      // Remove cancelled order from kitchen screen
+      setOrders(prev => prev.filter(o => o.id !== data.orderId));
+    });
+
     return () => {
       socketService.off('orderCreated');
       socketService.off('orderUpdated');
+      socketService.off('orderCancelled');
       socketService.disconnect();
     };
   }, []);

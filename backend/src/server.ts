@@ -91,6 +91,10 @@ app.use('/api/orders', orderLimiter, (req, res, next) => {
       } else if (data.status === 'Served') {
         io.emit('orderServed', data);
       }
+    } else if (req.method === 'DELETE' && req.path.match(/^\/\d+$/)) {
+      // Order cancelled
+      logger.info(`Order cancelled: ${data.orderId}`);
+      io.emit('orderCancelled', { orderId: data.orderId });
     }
     
     return originalJson(data);
