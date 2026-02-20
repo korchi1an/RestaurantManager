@@ -63,6 +63,12 @@ const initDb = async () => {
   const client = await pool.connect();
   
   try {
+    // Drop redundant tables if they exist
+    logger.info('DATABASE - Dropping redundant tables (users, table_assignments, waiter_assignments)');
+    await client.query(`DROP TABLE IF EXISTS table_assignments CASCADE`);
+    await client.query(`DROP TABLE IF EXISTS waiter_assignments CASCADE`);
+    await client.query(`DROP TABLE IF EXISTS users CASCADE`);
+    
     // Employees Table for Kitchen, Waiter, and Admin authentication
     await client.query(`
       CREATE TABLE IF NOT EXISTS employees (
@@ -84,48 +90,6 @@ const initDb = async () => {
         name VARCHAR(255) NOT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP
-      )
-    `);
-
-    // Drop old users table if it exists (migration from old schema)
-    await client.query(`DROP TABLE IF EXISTS users CASCADE`);
-
-    // Create users table as an alias/view of employees for backward compatibility
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE,
-        password_hash VARCHAR(255),
-        role VARCHAR(50) NOT NULL CHECK(role IN ('kitchen', 'waiter', 'admin', 'customer')),
-        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMP
-      )
-    `);
-
-    // Table Assignments - which waiters are assigned to which tables
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS table_assignments (
-        id SERIAL PRIMARY KEY,
-        user_id INTEGER NOT NULL,
-        table_number INTEGER NOT NULL,
-        assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (table_number) REFERENCES tables(table_number) ON DELETE CASCADE,
-        UNIQUE(user_id, table_number)
-      )
-    `);
-
-    // Waiter Assignments - another name for table assignments (for compatibility)
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS waiter_assignments (
-        id SERIAL PRIMARY KEY,
-        waiter_id INTEGER NOT NULL,
-        table_number INTEGER NOT NULL,
-        assigned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (waiter_id) REFERENCES users(id) ON DELETE CASCADE,
-        FOREIGN KEY (table_number) REFERENCES tables(table_number) ON DELETE CASCADE,
-        UNIQUE(waiter_id, table_number)
       )
     `);
 
