@@ -17,7 +17,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false },
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 5000, // Return an error after 5 seconds if connection could not be established
+  connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection could not be established
 });
 
 // Handle pool errors
@@ -296,8 +296,8 @@ const initDb = async () => {
   }
 };
 
-initDb();
-
-export { pool };
+// Export pool and initDb - DO NOT auto-initialize
+// Initialization should be called explicitly in server.ts
+export { pool, initDb };
 export default pool;
 

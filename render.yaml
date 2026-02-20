@@ -8,11 +8,10 @@ services:
     rootDir: ./backend
     buildCommand: npm install && npm run build
     startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 10000
       - key: DATABASE_URL
         sync: false
       - key: LOG_LEVEL
@@ -35,6 +34,8 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://restaurant-backend-85q6.onrender.com/api
+      - key: VITE_WS_URL
+        value: https://restaurant-backend-85q6.onrender.com
     routes:
       - type: rewrite
         source: /*

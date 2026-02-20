@@ -6,7 +6,8 @@ import { AuthRequest, authenticate } from '../middleware/auth';
 import logger from '../utils/logger';
 
 const router = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production-PLEASE';
+// JWT_SECRET is validated at startup in validateEnv.ts
+const JWT_SECRET = process.env.JWT_SECRET!;
 
 // Register new employee (for kitchen/waiter/admin staff only)
 router.post('/register', async (req: Request, res: Response) => {

@@ -1,3 +1,8 @@
+import { validateRequiredEnv } from './config/validateEnv';
+
+// Validate environment variables before importing anything else
+validateRequiredEnv();
+
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
@@ -14,7 +19,7 @@ import { authenticate, authorize, optionalAuth } from './middleware/auth';
 import { apiLimiter, orderLimiter, sessionLimiter } from './middleware/rateLimiter';
 import { errorHandler } from './middleware/errorHandler';
 import logger from './utils/logger';
-import { pool } from './db/database';
+import { pool, initDb } from './db/database';
 import SocketManager from './utils/socketManager';
 
 const app = express();
@@ -149,11 +154,39 @@ const PORT = process.env.PORT || 5000;
 
 // Only start server if not in test environment
 if (process.env.NODE_ENV !== 'test') {
-  httpServer.listen(PORT, () => {
-    logger.info(`✓ Server running on http://localhost:${PORT}`);
-    logger.info(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-    logger.info(`✓ Socket.IO server ready`);
-  });
+  // Initialize database and start server
+  const startServer = async () => {
+    try {
+      logger.info('=== SERVER STARTING ===');
+      logger.info(`Node version: ${process.version}`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info(`Port: ${PORT}`);
+      logger.info(`CORS Origin: ${process.env.CORS_ORIGIN}`);
+      
+      // Test database connection first
+      logger.info('Testing database connection...');
+      await pool.query('SELECT NOW()');
+      logger.info('✓ Database connection successful');
+      
+      // Initialize database (create tables, seed data)
+      logger.info('Initializing database schema...');
+      await initDb();
+      logger.info('✓ Database initialized');
+      
+      // Start HTTP server
+      httpServer.listen(PORT, () => {
+        logger.info(`✓ Server running on port ${PORT}`);
+        logger.info(`✓ Socket.IO server ready`);
+        logger.info('=== SERVER READY ===');
+      });
+    } catch (error) {
+      logger.error('❌ Failed to start server', { error });
+      logger.error('Server cannot start. Exiting.');
+      process.exit(1);
+    }
+  };
+  
+  startServer();
 }
 
 // Graceful shutdown handler
