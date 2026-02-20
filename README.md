@@ -1,13 +1,21 @@
-# Restaurant Order Management System
+# 🍽️ Restaurant Order Management System
 
-A full-stack web application for managing restaurant orders with real-time updates across customer, kitchen, and waiter interfaces.
+A production-ready full-stack web application for managing restaurant orders with real-time updates across customer, kitchen, and waiter interfaces.
+
+## 📚 Quick Links
+
+- **🚀 [Deploy to Production](docs/deployment/QUICKSTART.md)** - Step-by-step deployment guide
+- **💻 [Development Setup](docs/guides/INSTALLATION.md)** - Local development installation
+- **📖 [Full Documentation](docs/README.md)** - All documentation organized by topic
+- **🏗️ [Architecture](docs/architecture/ARCHITECTURE.md)** - Technical architecture details
+- **✅ [Deployment Checklist](docs/deployment/CHECKLIST.md)** - Pre-deployment verification
 
 ## 🎯 Features
 
 ### Customer Interface
 - Browse menu items organized by categories (Appetizers, Main Courses, Desserts, Beverages)
+- Session-based order tracking (multiple devices per table)
 - Add/remove items to cart with quantity adjustments
-- Select table number for order placement
 - Submit orders and track status in real-time
 - View order status updates (Pending → Preparing → Ready → Served)
 
@@ -23,7 +31,14 @@ A full-stack web application for managing restaurant orders with real-time updat
 - Real-time notifications when orders become ready
 - Mark orders as "Served"
 - View recently served orders
+- Call waiter functionality for customer assistance
 - Statistics for ready and served orders
+
+### Staff Interface
+- Employee authentication (Kitchen, Waiter, Admin roles)
+- Customer authentication and registration
+- QR code generation for tables
+- Table-waiter assignments
 
 ## 🏗️ Architecture
 
@@ -32,10 +47,19 @@ A full-stack web application for managing restaurant orders with real-time updat
 - **Backend**: Node.js, Express, TypeScript
 - **Database**: PostgreSQL with pg driver
 - **Real-time**: Socket.IO for WebSocket communication
-- **Security**: Helmet, Compression, Rate Limiting
-- **Logging**: Structured JSON logging with Winston
-- **Authentication**: JWT with bcrypt
+- **Security**: Helmet, JWT Authentication, Rate Limiting, bcrypt
+- **Logging**: Winston (structured JSON logging)
 - **Styling**: Custom CSS with responsive design
+
+### Deployment Status
+- ✅ Production-ready with environment validation
+- ✅ Health check endpoint configured
+- ✅ Graceful startup and shutdown
+- ✅ Database initialization with retry logic
+- ✅ Render.com deployment configured ([render.yaml](render.yaml))
+- ✅ Security hardening (JWT validation, CORS, rate limiting)
+
+See [Deployment Readiness Audit](docs/deployment/READINESS_AUDIT.md) for full details.
 
 ### Project Structure
 
@@ -233,75 +257,117 @@ The application uses Socket.IO for real-time updates:
 ## 📦 Seed Data
 
 The database is automatically seeded with:
-- **18 menu items** across 4 categories
+- **18 menu items** across 4 categories (Appetizers, Main Courses, Desserts, Beverages)
 - **10 tables** with varying capacities
+- **4 default employees** (Chef, Ana, Mihai, Admin) - ⚠️ Change passwords in production!
+
+## 📚 Documentation
+
+- **[Full Documentation Index](docs/README.md)** - Navigate all documentation
+- **[Deployment Guide](docs/deployment/QUICKSTART.md)** - Deploy to Render.com
+- **[Development Setup](docs/guides/INSTALLATION.md)** - Local development
+- **[Architecture Details](docs/architecture/ARCHITECTURE.md)** - System design
+- **[Project Overview](docs/PROJECT_OVERVIEW.md)** - Feature summary
+- **[Session Management](docs/guides/SESSION_MANAGEMENT.md)** - Session-based ordering
+
+## 🚀 Quick Start
+
+### Development (Local)
+
+1. **Install dependencies**
+   ```bash
+   cd backend && npm install
+   cd ../frontend && npm install
+   ```
+
+2. **Start development servers**
+   ```bash
+   # Terminal 1 - Backend
+   cd backend && npm run dev
+   
+   # Terminal 2 - Frontend  
+   cd frontend && npm run dev
+   ```
+
+3. **Access the app**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000
+
+For detailed instructions, see [Installation Guide](docs/guides/INSTALLATION.md).
+
+### Production (Render.com)
+
+1. **Commit and push** to GitHub
+2. **Create Render Blueprint** from [render.yaml](render.yaml)
+3. **Set environment variables** (DATABASE_URL, JWT_SECRET, CORS_ORIGIN)
+4. **Monitor deployment** logs for "=== SERVER READY ==="
+
+For detailed instructions, see [Deployment Quickstart](docs/deployment/QUICKSTART.md).
+
+## 🔐 Security Features
+
+- ✅ Environment variable validation on startup (fail-fast)
+- ✅ JWT authentication with secure secret validation
+- ✅ Password hashing with bcrypt
+- ✅ Rate limiting on all API endpoints
+- ✅ Helmet.js security headers
+- ✅ CORS configuration for production
+- ✅ Input validation and sanitization
+- ✅ SQL injection prevention (parameterized queries)
+
+## 🔄 Real-time Features
+
+Socket.IO events for instant updates:
+- `orderCreated` - Notifies kitchen of new orders
+- `orderUpdated` - Updates all dashboards on status change
+- `orderReady` - Notifies waiters when order is complete
+- `orderServed` - Updates all views when order delivered
+- `waiter-called` - Alerts waiters when customer needs assistance
 
 ## 🛠️ Technology Choices
 
 ### Why PostgreSQL?
-- Production-grade relational database
-- ACID compliance and data integrity
-- Excellent performance and scalability
-- Rich feature set (JSON, arrays, full-text search)
-- Strong community and ecosystem
-- Perfect for production deployments
+Production-grade relational database with ACID compliance, excellent performance, and rich feature set. Perfect for Render deployments with automatic backups.
 
 ### Why Socket.IO?
-- Reliable real-time bidirectional communication
-- Automatic reconnection
-- Fallback to HTTP long-polling
-- Broad browser support
+Reliable real-time bidirectional communication with automatic reconnection and fallback to HTTP long-polling.
 
 ### Why TypeScript?
-- Type safety reduces runtime errors
-- Better IDE support with autocomplete
-- Easier refactoring
-- Self-documenting code
+Type safety reduces runtime errors, provides better IDE support, and makes refactoring safer.
 
 ### Why Vite?
-- Fast development server with HMR
-- Optimized production builds
-- Native ES modules support
-- Better developer experience
+Lightning-fast development server with HMR, optimized production builds, and excellent developer experience.
 
-## 🔐 Future Enhancements
+## 📊 API Documentation
 
-- User authentication and authorization
-- Order history and analytics
-- Payment processing integration
-- Multi-restaurant support
-- Inventory management
-- Customer notifications via SMS/Email
-- Table reservation system
-- Order modifications and cancellations
-- Kitchen printer integration
-- Mobile app (React Native)
+See [Project Overview](docs/PROJECT_OVERVIEW.md) for complete API endpoint documentation.
 
-## 📝 Development Notes
-
-### Database Schema
-The database uses foreign keys to maintain referential integrity. All timestamps are stored in ISO 8601 format.
-
-### API Design
-RESTful API design with clear resource naming and HTTP methods. PATCH is used for partial updates (status changes).
-
-### Error Handling
-All API endpoints include try-catch blocks with appropriate HTTP status codes and error messages.
-
-### Code Organization
-- Clear separation of concerns
-- Modular component structure
-- Reusable services (API, Socket)
-- Type-safe interfaces throughout
+**Quick Reference:**
+- `GET /api/menu` - All menu items
+- `POST /api/orders` - Create order
+- `PATCH /api/orders/:id/status` - Update order status
+- `GET /health` - Health check (includes DB status)
 
 ## 🤝 Contributing
 
-This is a demonstration project. Feel free to fork and enhance!
+This is a demonstration project showcasing modern full-stack development practices. Feel free to fork and enhance!
+
+**Areas for enhancement:**
+- Payment processing integration
+- Order history and analytics
+- Multi-restaurant support
+- Mobile app (React Native)
+- Kitchen printer integration
+- SMS/Email notifications
 
 ## 📄 License
 
-MIT License - feel free to use this project for learning or as a starting point for your own restaurant management system.
+MIT License - Free to use for learning or as a starting point for your restaurant management system.
 
 ---
 
-**Built with ❤️ using React, TypeScript, Express, and Socket.IO**
+**🎯 Production Status**: ✅ Ready for deployment  
+**📦 Last Updated**: February 20, 2026  
+**🔗 Documentation**: [docs/README.md](docs/README.md)
+
+**Built with ❤️ using React, TypeScript, Express, PostgreSQL, and Socket.IO**
