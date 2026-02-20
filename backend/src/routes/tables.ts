@@ -122,7 +122,7 @@ router.get('/:tableNumber/unpaid-total', async (req: Request, res: Response) => 
     const result = await pool.query(`
       SELECT COALESCE(SUM(total_price), 0) as unpaid_total
       FROM orders
-      WHERE table_number = $1 AND paid_at IS NULL
+      WHERE table_number = $1 AND status != 'Paid'
     `, [tableNumber]);
 
     res.json({ 
@@ -140,16 +140,59 @@ router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitche
   try {
     const { tableNumber } = req.params;
 
+    // Update all unpaid orders for this table to 'Paid' status
     const result = await pool.query(`
       UPDATE orders
-      SET paid_at = NOW()
-      WHERE table_number = $1 AND paid_at IS NULL
+      SET status = 'Paid', paid_at = NOW(), updated_at = NOW()
+      WHERE table_number = $1 AND status != 'Paid'
+      RETURNING id
     `, [tableNumber]);
+
+    // Fetch full order details with items and emit socket events
+    if (result.rows.length > 0) {
+      const orderIds = result.rows.map(row => row.id);
+      logger.info('TABLES - Orders marked as paid', { tableNumber, orderIds });
+      
+      // Fetch full order details for socket events
+      for (const { id } of result.rows) {
+        const orderResult = await pool.query(`
+          SELECT o.*, 
+            json_agg(
+              json_build_object(
+                'id', oi.id,
+                'orderId', oi.order_id,
+                'menuItemId', oi.menu_item_id,
+                'quantity', oi.quantity,
+                'price', oi.price,
+                'name', mi.name,
+                'category', mi.category
+              )
+            ) FILTER (WHERE oi.id IS NOT NULL) as items
+          FROM orders o
+          LEFT JOIN order_items oi ON o.id = oi.order_id
+          LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+          WHERE o.id = $1
+          GROUP BY o.id
+        `, [id]);
+        
+        if (orderResult.rows.length > 0) {
+          const order = orderResult.rows[0];
+          
+          // Emit socket events if SocketManager is initialized
+          if (SocketManager.isInitialized()) {
+            const io = SocketManager.getIO();
+            io.emit('orderUpdated', order);
+            io.emit('orderPaid', order);
+          }
+        }
+      }
+    }
 
     res.json({ 
       success: true, 
       ordersPaid: result.rowCount,
-      message: `Marcate ${result.rowCount} comenzi ca plătite` 
+      message: `Marcate ${result.rowCount} comenzi ca plătite`,
+      orderIds: result.rows.map(row => row.id)
     });
   } catch (error) {
     logger.error('TABLES - Error marking orders as paid', { error, tableNumber: req.params.tableNumber });

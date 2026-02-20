@@ -362,6 +362,7 @@ const Customer: React.FC = () => {
                   {order.status === 'Preparing' && '👨‍🍳 Se Pregătește'}
                   {order.status === 'Ready' && '✅ Gata'}
                   {order.status === 'Served' && '🍽️ Servit'}
+                  {order.status === 'Paid' && '💰 Plătit'}
                 </span>
                 <span className="order-total">{order.totalPrice.toFixed(2)} Lei</span>
               </div>

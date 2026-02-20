@@ -1,5 +1,5 @@
 // Data models and types
-export type OrderStatus = 'Pending' | 'Preparing' | 'Ready' | 'Served';
+export type OrderStatus = 'Pending' | 'Preparing' | 'Ready' | 'Served' | 'Paid';
 
 export interface Session {
   id: string;

@@ -235,7 +235,7 @@ router.post('/', async (req: Request, res: Response) => {
 router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'), async (req: Request, res: Response) => {
   try {
     const { status }: UpdateOrderStatusRequest = req.body;
-    const validStatuses = ['Pending', 'Preparing', 'Ready', 'Served'];
+    const validStatuses = ['Pending', 'Preparing', 'Ready', 'Served', 'Paid'];
     logger.info('ORDER STATUS - Updating order status', { orderId: req.params.id, newStatus: status });
     
     if (!status || !validStatuses.includes(status)) {
@@ -243,11 +243,12 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
       return res.status(400).json({ error: 'Invalid status' });
     }
     
-    const updateResult = await pool.query(`
-      UPDATE orders 
-      SET status = $1, updated_at = NOW()
-      WHERE id = $2
-    `, [status, req.params.id]);
+    // Set paid_at timestamp when marking as Paid
+    const updateQuery = status === 'Paid'
+      ? `UPDATE orders SET status = $1, updated_at = NOW(), paid_at = NOW() WHERE id = $2`
+      : `UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2`;
+    
+    const updateResult = await pool.query(updateQuery, [status, req.params.id]);
     
     if (updateResult.rowCount === 0) {
       logger.warn('ORDER STATUS - Order not found', { orderId: req.params.id });

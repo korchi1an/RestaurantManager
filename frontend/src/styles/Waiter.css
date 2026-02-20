@@ -295,6 +295,10 @@
   border-left: 4px solid #4CAF50;
 }
 
+.waiter-order-card.served-order {
+  border-left: 4px solid #FF9800;
+}
+
 .waiter-order-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
@@ -334,6 +338,11 @@
 
 .status-badge.ready {
   background: #4CAF50;
+  color: white;
+}
+
+.status-badge.served {
+  background: #FF9800;
   color: white;
 }
 
@@ -397,6 +406,27 @@
 }
 
 .btn-serve:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-paid {
+  padding: 0.75rem 1.5rem;
+  background: #FF9800;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.btn-paid:hover {
+  background: #F57C00;
+}
+
+.btn-paid:disabled {
   background: #ccc;
   cursor: not-allowed;
 }

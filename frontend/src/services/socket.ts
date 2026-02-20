@@ -76,6 +76,12 @@ class SocketService {
     }
   }
 
+  onOrderPaid(callback: (order: OrderWithItems) => void) {
+    if (this.socket) {
+      this.socket.on('orderPaid', callback);
+    }
+  }
+
   onOrderCancelled(callback: (data: { orderId: number }) => void) {
     if (this.socket) {
       this.socket.on('orderCancelled', callback);

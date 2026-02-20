@@ -90,6 +90,8 @@ app.use('/api/orders', orderLimiter, (req, res, next) => {
         io.emit('orderReady', data);
       } else if (data.status === 'Served') {
         io.emit('orderServed', data);
+      } else if (data.status === 'Paid') {
+        io.emit('orderPaid', data);
       }
     } else if (req.method === 'DELETE' && req.path.match(/^\/\d+$/)) {
       // Order cancelled
@@ -183,6 +185,54 @@ if (process.env.NODE_ENV !== 'test') {
         logger.info(`✓ Socket.IO server ready`);
         logger.info('=== SERVER READY ===');
       });
+      
+      // ============================================================
+      // 🧹 AUTOMATIC SESSION CLEANUP (runs every minute)
+      // ============================================================
+      const SESSION_CLEANUP_INTERVAL = 60 * 1000; // 1 minute
+      const SESSION_TIMEOUT_AFTER_PAYMENT = 10 * 60 * 1000; // 10 minutes
+      
+      const cleanupPaidSessions = async () => {
+        try {
+          const paymentThreshold = new Date(Date.now() - SESSION_TIMEOUT_AFTER_PAYMENT);
+          
+          // Find sessions where all orders are paid and payment was 10+ minutes ago
+          const result = await pool.query(`
+            UPDATE sessions s
+            SET is_active = FALSE
+            WHERE s.is_active = TRUE
+            AND EXISTS (
+              SELECT 1 FROM orders o 
+              WHERE o.session_id = s.id 
+              AND o.status = 'Paid' 
+              AND o.paid_at < $1
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM orders o2 
+              WHERE o2.session_id = s.id 
+              AND o2.status != 'Paid'
+            )
+            RETURNING id, table_number, customer_name
+          `, [paymentThreshold]);
+          
+          if (result.rows.length > 0) {
+            logger.info(`🧹 Closed ${result.rows.length} paid sessions:`, 
+              result.rows.map(s => `Table ${s.table_number} (${s.customer_name || 'Guest'})`).join(', ')
+            );
+          }
+        } catch (error) {
+          logger.error('❌ Session cleanup error:', { error });
+        }
+      };
+      
+      // Run cleanup every minute
+      setInterval(cleanupPaidSessions, SESSION_CLEANUP_INTERVAL);
+      
+      // Run cleanup immediately on server start (clean up old sessions)
+      cleanupPaidSessions();
+      
+      logger.info('✅ Session auto-cleanup enabled (closes 10 min after payment)');
+      
     } catch (error) {
       logger.error('❌ Failed to start server', { error });
       logger.error('Server cannot start. Exiting.');

@@ -39,8 +39,8 @@ const Kitchen: React.FC = () => {
         }))
       };
       
-      if (orderWithNumbers.status === 'Served') {
-        // Remove served orders from kitchen screen
+      if (orderWithNumbers.status === 'Served' || orderWithNumbers.status === 'Paid') {
+        // Remove served and paid orders from kitchen screen
         setOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
       } else {
         // Update other orders
@@ -73,8 +73,10 @@ const Kitchen: React.FC = () => {
           price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
         }))
       }));
-      // Filter orders that are not yet served
-      const activeOrders = ordersWithNumbers.filter(order => order.status !== 'Served');
+      // Filter orders that are not yet served or paid
+      const activeOrders = ordersWithNumbers.filter(order => 
+        order.status !== 'Served' && order.status !== 'Paid'
+      );
       setOrders(activeOrders);
     } catch (error) {
       alert('Failed to load orders. Please refresh the page.');

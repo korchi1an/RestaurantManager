@@ -248,6 +248,12 @@
   color: #0c5460;
 }
 
+.status-badge.status-paid {
+  background: #d4edda;
+  color: #155724;
+  border: 2px solid #28a745;
+}
+
 .order-total {
   font-size: 1.2rem;
   font-weight: 700;

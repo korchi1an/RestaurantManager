@@ -69,8 +69,8 @@ const Waiter: React.FC = () => {
           }
           return [...prev, orderWithNumbers];
         });
-      } else if (orderWithNumbers.status === 'Served') {
-        // Remove from ready orders when marked as served
+      } else if (orderWithNumbers.status === 'Served' || orderWithNumbers.status === 'Paid') {
+        // Remove from ready orders when marked as served or paid
         setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
         
         // Reload unpaid totals after a brief delay to ensure DB is updated
