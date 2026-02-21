@@ -196,22 +196,27 @@ if (process.env.NODE_ENV !== 'test') {
         try {
           const paymentThreshold = new Date(Date.now() - SESSION_TIMEOUT_AFTER_PAYMENT);
           
-          // Find sessions where all orders are paid and payment was 10+ minutes ago
+          // Find sessions where all orders are paid and the LAST payment was 10+ minutes ago
           const result = await pool.query(`
             UPDATE sessions s
             SET is_active = FALSE
             WHERE s.is_active = TRUE
-            AND EXISTS (
+            AND NOT EXISTS (
               SELECT 1 FROM orders o 
               WHERE o.session_id = s.id 
-              AND o.status = 'Paid' 
-              AND o.paid_at < $1
+              AND o.status != 'Paid'
             )
-            AND NOT EXISTS (
+            AND EXISTS (
               SELECT 1 FROM orders o2 
               WHERE o2.session_id = s.id 
-              AND o2.status != 'Paid'
+              AND o2.status = 'Paid'
             )
+            AND (
+              SELECT MAX(o3.paid_at) 
+              FROM orders o3 
+              WHERE o3.session_id = s.id 
+              AND o3.status = 'Paid'
+            ) < $1
             RETURNING id, table_number, customer_name
           `, [paymentThreshold]);
           
@@ -231,7 +236,7 @@ if (process.env.NODE_ENV !== 'test') {
       // Run cleanup immediately on server start (clean up old sessions)
       cleanupPaidSessions();
       
-      logger.info('✅ Session auto-cleanup enabled (closes 10 min after payment)');
+      logger.info('✅ Session auto-cleanup enabled (closes 10 min after LAST payment)');
       
     } catch (error) {
       logger.error('❌ Failed to start server', { error });
