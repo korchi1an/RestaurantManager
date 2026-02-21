@@ -72,26 +72,10 @@ const Waiter: React.FC = () => {
       } else if (orderWithNumbers.status === 'Served' || orderWithNumbers.status === 'Paid') {
         // Remove from ready orders when marked as served or paid
         setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
-        
-        // Reload unpaid totals after a brief delay to ensure DB is updated
-        setTimeout(async () => {
-          try {
-            const tables = await api.get<any[]>('/table-assignments/my-tables');
-            const totalsMap = new Map<number, number>();
-            
-            for (const table of tables) {
-              const result = await api.get<{ tableNumber: number; unpaidTotal: number }>(`/tables/${table.table_number}/unpaid-total`);
-              // Convert string to number
-              const unpaidTotal = typeof result.unpaidTotal === 'string' ? parseFloat(result.unpaidTotal) : result.unpaidTotal;
-              totalsMap.set(table.table_number, unpaidTotal);
-            }
-            
-            setTableUnpaidTotals(totalsMap);
-          } catch (error) {
-            console.error('Error reloading unpaid totals:', error);
-          }
-        }, 500);
       }
+      
+      // Always reload unpaid totals when order status changes
+      await loadUnpaidTotals();
     });
 
     socketService.onWaiterCalled((data) => {

@@ -3,6 +3,7 @@ import { pool } from '../db/database';
 import { CreateOrderRequest, Order, OrderWithItems, UpdateOrderStatusRequest } from '../models/types';
 import { authenticate, authorize, AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
+import SocketManager from '../utils/socketManager';
 
 const router = Router();
 
@@ -291,6 +292,17 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
       updatedAt: order.updated_at,
       items: order.items || []
     };
+    
+    // Emit socket event to notify all clients about the order update
+    if (SocketManager.isInitialized()) {
+      const io = SocketManager.getIO();
+      io.emit('orderUpdated', formattedOrder);
+      
+      // Emit specific event for 'Ready' status
+      if (status === 'Ready') {
+        io.emit('orderReady', formattedOrder);
+      }
+    }
     
     res.json(formattedOrder);
   } catch (error) {

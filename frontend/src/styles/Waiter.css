@@ -262,7 +262,7 @@
 }
 
 .stat-card.served .stat-number {
-  color: #9E9E9E;
+  color: #FF9800;
 }
 
 .orders-section {
@@ -406,6 +406,27 @@
 }
 
 .btn-serve:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.btn-pay {
+  padding: 0.75rem 1.5rem;
+  background: #FF9800;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.btn-pay:hover {
+  background: #F57C00;
+}
+
+.btn-pay:disabled {
   background: #ccc;
   cursor: not-allowed;
 }
