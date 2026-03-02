@@ -37,14 +37,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/table/:tableId" element={<Customer />} />
-            <Route 
-              path="/waiter/order" 
-              element={
-                <ProtectedRoute requiredRole="waiter">
-                  <Customer />
-                </ProtectedRoute>
-              } 
-            />
+            <Route path="/waiter/order" element={<Customer />} />
             <Route path="/login" element={<Login />} />
             <Route path="/customer-login" element={<CustomerLogin />} />
             <Route path="/customer-register" element={<Register />} />
