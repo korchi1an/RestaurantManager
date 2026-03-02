@@ -48,7 +48,7 @@ export interface OrderItem {
 
 // DTOs for API requests/responses
 export interface CreateOrderRequest {
-  sessionId?: string;
+  sessionId?: string | null;
   tableNumber: number;
   items: {
     menuItemId: number;

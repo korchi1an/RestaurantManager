@@ -57,7 +57,7 @@ export interface OrderWithItems extends Order {
 }
 
 export interface CreateOrderRequest {
-  sessionId?: string;
+  sessionId?: string | null;
   tableNumber: number;
   items: {
     menuItemId: number;
