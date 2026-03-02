@@ -18,6 +18,7 @@ const Waiter: React.FC = () => {
 
   // Use ref to access latest assignedTables in socket listener
   const assignedTablesRef = React.useRef<any[]>([]);
+  const isLoadingUnpaidTotalsRef = React.useRef<boolean>(false);
   
   useEffect(() => {
     assignedTablesRef.current = assignedTables;
@@ -133,9 +134,16 @@ const Waiter: React.FC = () => {
   };
 
   const loadUnpaidTotals = async () => {
+    if (isLoadingUnpaidTotalsRef.current) {
+      console.log('[Waiter] loadUnpaidTotals already in progress, skipping...');
+      return;
+    }
+    
     try {
+      isLoadingUnpaidTotalsRef.current = true;
       console.log('[Waiter] Loading unpaid totals...');
       const tables = await api.get<any[]>('/table-assignments/my-tables');
+      console.log('[Waiter] Assigned tables received:', tables.length, tables);
       const totalsMap = new Map<number, number>();
       
       for (const table of tables) {
@@ -154,7 +162,9 @@ const Waiter: React.FC = () => {
       // Update ref for socket handlers
       assignedTablesRef.current = tables;
     } catch (error) {
-      console.error('Error loading unpaid totals:', error);
+      console.error('[Waiter] Error loading unpaid totals:', error);
+    } finally {
+      isLoadingUnpaidTotalsRef.current = false;
     }
   };
 

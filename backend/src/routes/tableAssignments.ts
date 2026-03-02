@@ -33,8 +33,11 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 router.get('/my-tables', async (req: AuthRequest, res: Response) => {
   try {
     if (!req.user) {
+      logger.warn('TABLE_ASSIGNMENTS - my-tables called without authenticated user');
       return res.status(401).json({ error: 'Not authenticated' });
     }
+
+    logger.info('TABLE_ASSIGNMENTS - Fetching tables for waiter', { waiterId: req.user.id, username: req.user.username });
 
     const result = await pool.query(`
       SELECT 
@@ -47,6 +50,8 @@ router.get('/my-tables', async (req: AuthRequest, res: Response) => {
       WHERE waiter_id = $1
       ORDER BY table_number
     `, [req.user.id]);
+
+    logger.info('TABLE_ASSIGNMENTS - Tables found', { waiterId: req.user.id, count: result.rows.length, tables: result.rows.map(t => t.table_number) });
 
     res.json(result.rows);
   } catch (error: any) {
