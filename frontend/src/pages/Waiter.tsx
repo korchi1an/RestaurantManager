@@ -87,7 +87,8 @@ const Waiter: React.FC = () => {
         setServedOrdersByTable(prev => {
           const newMap = new Map(prev);
           const current = newMap.get(orderWithNumbers.tableNumber) || 0;
-          newMap.set(orderWithNumbers.tableNumber, current + orderWithNumbers.totalPrice);
+          const price = typeof orderWithNumbers.totalPrice === 'number' && !isNaN(orderWithNumbers.totalPrice) ? orderWithNumbers.totalPrice : 0;
+          newMap.set(orderWithNumbers.tableNumber, current + price);
           return newMap;
         });
       } else if (orderWithNumbers.status === 'Paid') {
@@ -182,7 +183,8 @@ const Waiter: React.FC = () => {
       const servedMap = new Map<number, number>();
       served.forEach(order => {
         const current = servedMap.get(order.tableNumber) || 0;
-        servedMap.set(order.tableNumber, current + order.totalPrice);
+        const price = typeof order.totalPrice === 'number' && !isNaN(order.totalPrice) ? order.totalPrice : 0;
+        servedMap.set(order.tableNumber, current + price);
       });
       setServedOrdersByTable(servedMap);
     } catch (error) {
@@ -346,11 +348,12 @@ const Waiter: React.FC = () => {
           <h3>Comenzi Servite (Așteaptă plata)</h3>
           <div className="served-tables-list">
             {Array.from(servedOrdersByTable.entries())
+              .filter(([_, total]) => typeof total === 'number' && !isNaN(total) && total > 0)
               .sort((a, b) => a[0] - b[0])
               .map(([tableNumber, total]) => (
                 <div key={tableNumber} className="served-table-item">
                   <span className="table-label">Masa {tableNumber}</span>
-                  <span className="table-total">{total.toFixed(2)} Lei</span>
+                  <span className="table-total">{(total || 0).toFixed(2)} Lei</span>
                   <button 
                     className="pay-btn-small"
                     onClick={() => markTableAsPaid(tableNumber)}
