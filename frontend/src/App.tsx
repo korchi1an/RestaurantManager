@@ -35,7 +35,7 @@ function App() {
       <div className="app">
         <main className="app-main">
           <Routes>
-            <Route path="/" element={<Customer />} />
+            <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/table/:tableId" element={<Customer />} />
             <Route 
               path="/waiter/order" 
