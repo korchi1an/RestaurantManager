@@ -337,7 +337,7 @@ const Waiter: React.FC = () => {
       {assignedTables.length > 0 && assignedTables.filter(table => {
         const unpaidTotal = tableUnpaidTotals.get(table.table_number) || 0;
         return unpaidTotal > 0;
-      }).length === 0 && (
+      }).length === 0 && servedOrdersByTable.size === 0 && (
         <div className="no-tables-warning">
           <p>✓ Toate mesele tale sunt plătite!</p>
         </div>
