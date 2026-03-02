@@ -62,6 +62,8 @@ const Waiter: React.FC = () => {
     });
 
     socketService.onOrderUpdated(async (order) => {
+      console.log('[Waiter] Socket orderUpdated received:', { orderId: order.id, status: order.status, tableNumber: order.tableNumber });
+      
       // Convert price strings to numbers
       const orderWithNumbers = {
         ...order,
@@ -83,10 +85,11 @@ const Waiter: React.FC = () => {
       } else if (orderWithNumbers.status === 'Served' || orderWithNumbers.status === 'Paid') {
         // Remove from ready orders when served or paid
         setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
+        
+        // Reload unpaid totals when order is marked as served or paid
+        console.log('[Waiter] Reloading unpaid totals after status change to', orderWithNumbers.status);
+        await loadUnpaidTotals();
       }
-      
-      // Always reload unpaid totals when order status changes
-      await loadUnpaidTotals();
     });
 
     socketService.onWaiterCalled((data) => {
@@ -131,6 +134,7 @@ const Waiter: React.FC = () => {
 
   const loadUnpaidTotals = async () => {
     try {
+      console.log('[Waiter] Loading unpaid totals...');
       const tables = await api.get<any[]>('/table-assignments/my-tables');
       const totalsMap = new Map<number, number>();
       
@@ -138,12 +142,15 @@ const Waiter: React.FC = () => {
         const result = await api.get<{ tableNumber: number; unpaidTotal: number }>(`/tables/${table.table_number}/unpaid-total`);
         // Convert string to number if needed
         const unpaidTotal = typeof result.unpaidTotal === 'string' ? parseFloat(result.unpaidTotal) : result.unpaidTotal;
+        console.log(`[Waiter] Table ${table.table_number} unpaid total:`, unpaidTotal);
         totalsMap.set(table.table_number, unpaidTotal);
       }
       
+      console.log('[Waiter] Updating state with new totals:', Array.from(totalsMap.entries()));
+      
       // Update both assigned tables and unpaid totals to keep them in sync
-      setAssignedTables(tables);
-      setTableUnpaidTotals(totalsMap);
+      setAssignedTables([...tables]); // Force new array instance
+      setTableUnpaidTotals(new Map(totalsMap)); // Force new Map instance to trigger re-render
       // Update ref for socket handlers
       assignedTablesRef.current = tables;
     } catch (error) {
@@ -194,9 +201,16 @@ const Waiter: React.FC = () => {
   const markAsServed = async (orderId: number) => {
     setLoading(true);
     try {
+      console.log('[Waiter] Marking order as served:', orderId);
       await api.updateOrderStatus(orderId, 'Served');
+      
+      // Small delay to ensure database transaction completes
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      console.log('[Waiter] Order marked as served, reloading data...');
       await loadUnpaidTotals();
       await loadOrders();
+      console.log('[Waiter] Data reloaded after marking as served');
     } catch (error) {
       console.error('Error updating order:', error);
       alert('Nu s-a putut actualiza starea comenzii');
