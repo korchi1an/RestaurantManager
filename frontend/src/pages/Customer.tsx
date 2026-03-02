@@ -290,8 +290,6 @@ const Customer: React.FC = () => {
         });
         return;
       }
-        return;
-      }
       
       alert('✅ Order placed successfully!');
       
