@@ -232,24 +232,10 @@ const Waiter: React.FC = () => {
     try {
       console.log('[Waiter] Marking order as served:', orderId);
       
-      // Find the order to get its table number and price
-      const order = readyOrders.find(o => o.id === orderId);
-      if (!order) {
-        console.error('[Waiter] Order not found in readyOrders');
-        return;
-      }
-      
       await api.updateOrderStatus(orderId, 'Served');
       
-      // Update unpaid totals directly in state
-      setTableUnpaidTotals(prev => {
-        const newMap = new Map(prev);
-        const currentTotal = newMap.get(order.tableNumber) || 0;
-        const newTotal = currentTotal + order.totalPrice;
-        newMap.set(order.tableNumber, newTotal);
-        console.log(`[Waiter] Updated unpaid total for table ${order.tableNumber}: ${currentTotal} + ${order.totalPrice} = ${newTotal}`);
-        return newMap;
-      });
+      // Don't update state here - let the socket handler do it to avoid double counting
+      // The socket event will fire and update unpaid totals automatically
       
       // Remove from ready orders
       await loadOrders();
