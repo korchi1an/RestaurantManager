@@ -83,13 +83,32 @@ const Waiter: React.FC = () => {
           }
           return [...prev, orderWithNumbers];
         });
-      } else if (orderWithNumbers.status === 'Served' || orderWithNumbers.status === 'Paid') {
-        // Remove from ready orders when served or paid
+      } else if (orderWithNumbers.status === 'Served') {
+        // Remove from ready orders and update unpaid totals
         setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
         
-        // Reload unpaid totals when order is marked as served or paid
-        console.log('[Waiter] Reloading unpaid totals after status change to', orderWithNumbers.status);
-        await loadUnpaidTotals();
+        // Update unpaid totals directly in state
+        setTableUnpaidTotals(prev => {
+          const newMap = new Map(prev);
+          const currentTotal = newMap.get(orderWithNumbers.tableNumber) || 0;
+          const newTotal = currentTotal + orderWithNumbers.totalPrice;
+          newMap.set(orderWithNumbers.tableNumber, newTotal);
+          console.log(`[Waiter] Socket: Updated unpaid total for table ${orderWithNumbers.tableNumber}: ${currentTotal} + ${orderWithNumbers.totalPrice} = ${newTotal}`);
+          return newMap;
+        });
+      } else if (orderWithNumbers.status === 'Paid') {
+        // Remove from ready orders when paid
+        setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
+        
+        // Update unpaid totals (subtract the order price)
+        setTableUnpaidTotals(prev => {
+          const newMap = new Map(prev);
+          const currentTotal = newMap.get(orderWithNumbers.tableNumber) || 0;
+          const newTotal = Math.max(0, currentTotal - orderWithNumbers.totalPrice);
+          newMap.set(orderWithNumbers.tableNumber, newTotal);
+          console.log(`[Waiter] Socket: Paid - Updated unpaid total for table ${orderWithNumbers.tableNumber}: ${currentTotal} - ${orderWithNumbers.totalPrice} = ${newTotal}`);
+          return newMap;
+        });
       }
     });
 
@@ -212,15 +231,29 @@ const Waiter: React.FC = () => {
     setLoading(true);
     try {
       console.log('[Waiter] Marking order as served:', orderId);
+      
+      // Find the order to get its table number and price
+      const order = readyOrders.find(o => o.id === orderId);
+      if (!order) {
+        console.error('[Waiter] Order not found in readyOrders');
+        return;
+      }
+      
       await api.updateOrderStatus(orderId, 'Served');
       
-      // Small delay to ensure database transaction completes
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Update unpaid totals directly in state
+      setTableUnpaidTotals(prev => {
+        const newMap = new Map(prev);
+        const currentTotal = newMap.get(order.tableNumber) || 0;
+        const newTotal = currentTotal + order.totalPrice;
+        newMap.set(order.tableNumber, newTotal);
+        console.log(`[Waiter] Updated unpaid total for table ${order.tableNumber}: ${currentTotal} + ${order.totalPrice} = ${newTotal}`);
+        return newMap;
+      });
       
-      console.log('[Waiter] Order marked as served, reloading data...');
-      await loadUnpaidTotals();
+      // Remove from ready orders
       await loadOrders();
-      console.log('[Waiter] Data reloaded after marking as served');
+      console.log('[Waiter] Order marked as served successfully');
     } catch (error) {
       console.error('Error updating order:', error);
       alert('Nu s-a putut actualiza starea comenzii');
@@ -241,7 +274,15 @@ const Waiter: React.FC = () => {
         {}
       );
       showNotification(result.message);
-      await loadUnpaidTotals();
+      
+      // Reset unpaid total for this table to 0
+      setTableUnpaidTotals(prev => {
+        const newMap = new Map(prev);
+        newMap.set(tableNumber, 0);
+        console.log(`[Waiter] Reset unpaid total for table ${tableNumber} to 0`);
+        return newMap;
+      });
+      
       await loadOrders();
     } catch (error) {
       console.error('Error marking table as paid:', error);
