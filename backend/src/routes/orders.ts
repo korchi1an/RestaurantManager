@@ -53,12 +53,15 @@ router.post('/waiter', authenticate, authorize('waiter', 'admin'), async (req: A
       itemsCount: itemsWithPrices.length 
     });
     
-    // Insert order with waiter ID (no session for waiter orders)
+    // For waiter orders, store waiter ID in session_id field with 'waiter-' prefix
+    const waiterSessionId = `waiter-${waiterId}`;
+    
+    // Insert order with waiter ID in session_id field
     const orderResult = await pool.query(`
-      INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_by_employee_id, created_at, updated_at)
-      VALUES (1, NULL, $1, 'Pending', $2, $3, NOW(), NOW())
+      INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
+      VALUES (1, $1, $2, 'Pending', $3, NOW(), NOW())
       RETURNING id
-    `, [orderData.tableNumber, totalPrice, waiterId]);
+    `, [waiterSessionId, orderData.tableNumber, totalPrice]);
     
     const orderId = orderResult.rows[0].id;
     logger.info('WAITER ORDER - Order inserted', { 

@@ -156,25 +156,8 @@ const initDb = async () => {
         created_at TIMESTAMP NOT NULL,
         updated_at TIMESTAMP NOT NULL,
         paid_at TIMESTAMP,
-        created_by_employee_id INTEGER,
-        FOREIGN KEY (table_number) REFERENCES tables(table_number),
-        FOREIGN KEY (created_by_employee_id) REFERENCES employees(id) ON DELETE SET NULL
+        FOREIGN KEY (table_number) REFERENCES tables(table_number)
       )
-    `);
-
-    // Add created_by_employee_id column if it doesn't exist (migration for existing databases)
-    await client.query(`
-      DO $$ 
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns 
-          WHERE table_name = 'orders' AND column_name = 'created_by_employee_id'
-        ) THEN
-          ALTER TABLE orders ADD COLUMN created_by_employee_id INTEGER;
-          ALTER TABLE orders ADD CONSTRAINT fk_orders_employee
-            FOREIGN KEY (created_by_employee_id) REFERENCES employees(id) ON DELETE SET NULL;
-        END IF;
-      END $$;
     `);
 
     // Order Items Table
