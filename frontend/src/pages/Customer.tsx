@@ -21,6 +21,7 @@ const Customer: React.FC = () => {
   const [isQrMode, setIsQrMode] = useState<boolean>(!!tableId);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('');
+  const [isWaiterAssisted, setIsWaiterAssisted] = useState<boolean>(false);
 
   useEffect(() => {
     // Check if user is logged in
@@ -31,6 +32,13 @@ const Customer: React.FC = () => {
     if (token && role === 'customer') {
       setIsLoggedIn(true);
       setUserName(name || 'Customer');
+    }
+    
+    // Check if this is waiter-assisted ordering
+    if (token && role === 'waiter') {
+      setIsWaiterAssisted(true);
+      setIsLoggedIn(true);
+      setUserName(name || 'Waiter');
     }
     
     loadMenu();
@@ -241,6 +249,12 @@ const Customer: React.FC = () => {
       
       alert('✅ Order placed successfully!');
       
+      // If waiter-assisted, redirect back to waiter dashboard
+      if (isWaiterAssisted) {
+        navigate('/waiter');
+        return;
+      }
+      
       // Keep session active for additional orders
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || error.message || 'Failed to submit order';
@@ -308,13 +322,15 @@ const Customer: React.FC = () => {
               </>
             )}
           </div>
-          <button 
-            className="call-waiter-btn" 
-            onClick={callWaiter}
-            title="Call your waiter"
-          >
-            🔔 Call Waiter
-          </button>
+          {!isWaiterAssisted && (
+            <button 
+              className="call-waiter-btn" 
+              onClick={callWaiter}
+              title="Call your waiter"
+            >
+              🔔 Call Waiter
+            </button>
+          )}
           <div className="auth-section">
             {isLoggedIn ? (
               <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
