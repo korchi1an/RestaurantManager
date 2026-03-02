@@ -122,7 +122,7 @@ router.get('/:tableNumber/unpaid-total', async (req: Request, res: Response) => 
     const result = await pool.query(`
       SELECT COALESCE(SUM(total_price), 0) as unpaid_total
       FROM orders
-      WHERE table_number = $1 AND status != 'Paid'
+      WHERE table_number = $1 AND status = 'Served'
     `, [tableNumber]);
 
     res.json({ 
@@ -135,16 +135,16 @@ router.get('/:tableNumber/unpaid-total', async (req: Request, res: Response) => 
   }
 });
 
-// POST /api/tables/:tableNumber/mark-paid - Mark all unpaid orders as paid (waiter only)
+// POST /api/tables/:tableNumber/mark-paid - Mark all served orders as paid (waiter only)
 router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitchen', 'admin'), async (req: Request, res: Response) => {
   try {
     const { tableNumber } = req.params;
 
-    // Update all unpaid orders for this table to 'Paid' status
+    // Update all served orders for this table to 'Paid' status
     const result = await pool.query(`
       UPDATE orders
       SET status = 'Paid', paid_at = NOW(), updated_at = NOW()
-      WHERE table_number = $1 AND status != 'Paid'
+      WHERE table_number = $1 AND status = 'Served'
       RETURNING id
     `, [tableNumber]);
 
