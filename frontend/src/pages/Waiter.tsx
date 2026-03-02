@@ -19,7 +19,6 @@ const Waiter: React.FC = () => {
   // Use ref to access latest assignedTables in socket listener
   const assignedTablesRef = React.useRef<any[]>([]);
   const isLoadingUnpaidTotalsRef = React.useRef<boolean>(false);
-  const processedOrderUpdatesRef = React.useRef<Set<string>>(new Set());
   
   useEffect(() => {
     assignedTablesRef.current = assignedTables;
@@ -66,24 +65,6 @@ const Waiter: React.FC = () => {
     socketService.onOrderUpdated(async (order) => {
       console.log('[Waiter] Socket orderUpdated received:', { orderId: order.id, status: order.status, tableNumber: order.tableNumber });
       
-      // Create unique key for this order update to prevent double-counting
-      const updateKey = `${order.id}-${order.status}`;
-      
-      // Check if we've already processed this exact update
-      if (processedOrderUpdatesRef.current.has(updateKey)) {
-        console.log(`[Waiter] Skipping duplicate update for order ${order.id} with status ${order.status}`);
-        return;
-      }
-      
-      // Mark as processed
-      processedOrderUpdatesRef.current.add(updateKey);
-      
-      // Clean up old entries to prevent memory leak (keep last 100)
-      if (processedOrderUpdatesRef.current.size > 100) {
-        const entries = Array.from(processedOrderUpdatesRef.current);
-        processedOrderUpdatesRef.current = new Set(entries.slice(-50));
-      }
-      
       // Convert price strings to numbers
       const orderWithNumbers = {
         ...order,
@@ -102,32 +83,24 @@ const Waiter: React.FC = () => {
           }
           return [...prev, orderWithNumbers];
         });
-      } else if (orderWithNumbers.status === 'Served') {
-        // Remove from ready orders and update unpaid totals
+      } else if (orderWithNumbers.status === 'Served' || orderWithNumbers.status === 'Paid') {
+        // Remove from ready orders
         setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
         
-        // Update unpaid totals directly in state
-        setTableUnpaidTotals(prev => {
-          const newMap = new Map(prev);
-          const currentTotal = newMap.get(orderWithNumbers.tableNumber) || 0;
-          const newTotal = currentTotal + orderWithNumbers.totalPrice;
-          newMap.set(orderWithNumbers.tableNumber, newTotal);
-          console.log(`[Waiter] Socket: Updated unpaid total for table ${orderWithNumbers.tableNumber}: ${currentTotal} + ${orderWithNumbers.totalPrice} = ${newTotal}`);
-          return newMap;
-        });
-      } else if (orderWithNumbers.status === 'Paid') {
-        // Remove from ready orders when paid
-        setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
-        
-        // Update unpaid totals (subtract the order price)
-        setTableUnpaidTotals(prev => {
-          const newMap = new Map(prev);
-          const currentTotal = newMap.get(orderWithNumbers.tableNumber) || 0;
-          const newTotal = Math.max(0, currentTotal - orderWithNumbers.totalPrice);
-          newMap.set(orderWithNumbers.tableNumber, newTotal);
-          console.log(`[Waiter] Socket: Paid - Updated unpaid total for table ${orderWithNumbers.tableNumber}: ${currentTotal} - ${orderWithNumbers.totalPrice} = ${newTotal}`);
-          return newMap;
-        });
+        // Fetch fresh unpaid total for this table from backend
+        try {
+          const result = await api.get<{ tableNumber: number; unpaidTotal: number }>(`/tables/${orderWithNumbers.tableNumber}/unpaid-total`);
+          const unpaidTotal = typeof result.unpaidTotal === 'string' ? parseFloat(result.unpaidTotal) : result.unpaidTotal;
+          
+          setTableUnpaidTotals(prev => {
+            const newMap = new Map(prev);
+            newMap.set(orderWithNumbers.tableNumber, unpaidTotal);
+            console.log(`[Waiter] Socket: Refreshed unpaid total for table ${orderWithNumbers.tableNumber}: ${unpaidTotal}`);
+            return newMap;
+          });
+        } catch (error) {
+          console.error('[Waiter] Failed to refresh unpaid total:', error);
+        }
       }
     });
 
