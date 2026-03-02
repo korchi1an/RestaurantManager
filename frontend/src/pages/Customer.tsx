@@ -39,6 +39,9 @@ const Customer: React.FC = () => {
       setIsWaiterAssisted(true);
       setIsLoggedIn(true);
       setUserName(name || 'Waiter');
+      // Waiter-assisted ordering: no session needed, just return
+      loadMenu();
+      return;
     }
     
     loadMenu();
@@ -225,12 +228,17 @@ const Customer: React.FC = () => {
 
     setLoading(true);
     try {
-      // Create session if not exists
-      let currentSessionId = sessionId;
-      if (!currentSessionId) {
-        const session = await sessionService.createSession(tableNumber);
-        currentSessionId = session.sessionId;
-        setSessionId(currentSessionId);
+      // For waiter-assisted ordering, no session needed
+      let currentSessionId = null;
+      
+      if (!isWaiterAssisted) {
+        // For customer ordering, create session if not exists
+        currentSessionId = sessionId;
+        if (!currentSessionId) {
+          const session = await sessionService.createSession(tableNumber);
+          currentSessionId = session.sessionId;
+          setSessionId(currentSessionId);
+        }
       }
 
       const orderData = {
@@ -376,7 +384,7 @@ const Customer: React.FC = () => {
         </div>
       )}
 
-      {sessionOrders.length > 0 && (
+      {sessionOrders.length > 0 && !isWaiterAssisted && (
         <div className="order-history-section">
           <h2 className="history-title">Comenzile Tale din Sesiunea Curentă</h2>
           <div className="session-total">
