@@ -261,7 +261,7 @@ const Waiter: React.FC = () => {
         <div className="header-buttons">
           <button 
             className="take-order-btn" 
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/waiter/order')}
             title="Take order for a customer"
           >
             📝 Take Order

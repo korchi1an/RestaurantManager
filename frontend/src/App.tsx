@@ -37,6 +37,14 @@ function App() {
           <Routes>
             <Route path="/" element={<Customer />} />
             <Route path="/table/:tableId" element={<Customer />} />
+            <Route 
+              path="/waiter/order" 
+              element={
+                <ProtectedRoute requiredRole="waiter">
+                  <Customer />
+                </ProtectedRoute>
+              } 
+            />
             <Route path="/login" element={<Login />} />
             <Route path="/customer-login" element={<CustomerLogin />} />
             <Route path="/customer-register" element={<Register />} />
