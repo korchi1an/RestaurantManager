@@ -37,7 +37,12 @@ router.get('/my-tables', async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    logger.info('TABLE_ASSIGNMENTS - Fetching tables for waiter', { waiterId: req.user.id, username: req.user.username });
+    logger.info('TABLE_ASSIGNMENTS - Fetching tables for waiter', { 
+      waiterId: req.user.id, 
+      username: req.user.username,
+      userIdField: req.user.userId,
+      fullUser: req.user 
+    });
 
     const result = await pool.query(`
       SELECT 
@@ -51,11 +56,22 @@ router.get('/my-tables', async (req: AuthRequest, res: Response) => {
       ORDER BY table_number
     `, [req.user.id]);
 
-    logger.info('TABLE_ASSIGNMENTS - Tables found', { waiterId: req.user.id, count: result.rows.length, tables: result.rows.map(t => t.table_number) });
+    logger.info('TABLE_ASSIGNMENTS - Query executed', { 
+      waiterId: req.user.id, 
+      queryParam: req.user.id,
+      rowCount: result.rows.length, 
+      tables: result.rows.map(t => ({ id: t.id, table_number: t.table_number, waiter_id: t.waiter_id })) 
+    });
+
+    // Also check what tables exist in general
+    const allTablesResult = await pool.query(`SELECT id, table_number, waiter_id FROM tables ORDER BY table_number`);
+    logger.info('TABLE_ASSIGNMENTS - All tables in database', { 
+      allTables: allTablesResult.rows.map(t => ({ id: t.id, table_number: t.table_number, waiter_id: t.waiter_id }))
+    });
 
     res.json(result.rows);
   } catch (error: any) {
-    logger.error('TABLE_ASSIGNMENTS - Error fetching waiter tables', { error, waiterId: req.user?.id });
+    logger.error('TABLE_ASSIGNMENTS - Error fetching waiter tables', { error: error.message, stack: error.stack, waiterId: req.user?.id });
     res.status(500).json({ error: 'Failed to fetch assigned tables' });
   }
 });
