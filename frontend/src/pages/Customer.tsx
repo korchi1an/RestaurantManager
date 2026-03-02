@@ -250,7 +250,6 @@ const Customer: React.FC = () => {
       // If waiter-assisted, redirect back to waiter dashboard with success message
       if (isWaiterAssisted) {
         navigate('/waiter', { 
-          replace: true, 
           state: { 
             orderSuccess: true, 
             message: `Order #${order.id} placed successfully for Table ${tableNumber}!` 
