@@ -1,19 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { MenuItem, CartItem, OrderWithItems } from '../types';
+import { useParams, useNavigate } from 'react-router-dom';
+import { MenuItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import socketService from '../services/socket';
 import sessionService from '../services/sessionService';
+import { useCart } from '../hooks/useCart';
+import MenuDisplay from '../components/MenuDisplay';
+import CartDisplay from '../components/CartDisplay';
 import '../styles/Customer.css';
 
 const Customer: React.FC = () => {
   const { tableId } = useParams<{ tableId: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [tableNumber, setTableNumber] = useState<number>(tableId ? parseInt(tableId) : 1);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentOrder, setCurrentOrder] = useState<OrderWithItems | null>(null);
@@ -22,38 +23,21 @@ const Customer: React.FC = () => {
   const [isQrMode, setIsQrMode] = useState<boolean>(!!tableId);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('');
-  const [isWaiterAssisted, setIsWaiterAssisted] = useState<boolean>(false);
+
+  const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
 
   useEffect(() => {
-    // Check if user is logged in
+    // Check if customer is logged in
     const token = localStorage.getItem('auth_token');
     const name = localStorage.getItem('user_name');
     const role = localStorage.getItem('user_role');
     
-    // Only treat as waiter-assisted if on /waiter/order route
-    const isWaiterOrderRoute = location.pathname === '/waiter/order';
-    
-    if (token && role === 'customer' && !isWaiterOrderRoute) {
+    if (token && role === 'customer') {
       setIsLoggedIn(true);
       setUserName(name || 'Customer');
     }
     
-    // Check if this is waiter-assisted ordering (only on /waiter/order route)
-    if (token && role === 'waiter' && isWaiterOrderRoute) {
-      setIsWaiterAssisted(true);
-      setIsLoggedIn(true);
-      setUserName(name || 'Waiter');
-      // Waiter-assisted ordering: no session needed, just load menu and return
-      loadMenu();
-      return;
-    }
-    
     loadMenu();
-    
-    // Don't create sessions for waiter-assisted orders
-    if (isWaiterOrderRoute) {
-      return;
-    }
     
     // If coming from QR code (tableId in URL), auto-create session
     if (tableId) {
@@ -67,6 +51,7 @@ const Customer: React.FC = () => {
           const session = await sessionService.createSession(tableNum);
           setSessionId(session.sessionId);
         } catch (error) {
+          console.error('Failed to create session:', error);
         }
       };
       
@@ -79,7 +64,7 @@ const Customer: React.FC = () => {
         setTableNumber(storedSession.tableNumber);
       }
     }
-  }, [tableId, location.pathname]);
+  }, [tableId]);
 
   useEffect(() => {
     // Connect socket once
@@ -171,45 +156,7 @@ const Customer: React.FC = () => {
     }
   };
 
-  const filteredItems = selectedCategory === 'All' 
-    ? menuItems 
-    : menuItems.filter(item => item.category === selectedCategory);
 
-  const addToCart = (menuItem: MenuItem) => {
-    const existingItem = cart.find(item => item.menuItem.id === menuItem.id);
-    if (existingItem) {
-      setCart(cart.map(item =>
-        item.menuItem.id === menuItem.id
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
-    } else {
-      setCart([...cart, { menuItem, quantity: 1 }]);
-    }
-  };
-
-  const removeFromCart = (menuItemId: number) => {
-    setCart(cart.filter(item => item.menuItem.id !== menuItemId));
-  };
-
-  const updateQuantity = (menuItemId: number, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(menuItemId);
-    } else {
-      setCart(cart.map(item =>
-        item.menuItem.id === menuItemId
-          ? { ...item, quantity }
-          : item
-      ));
-    }
-  };
-
-  const getTotalPrice = () => {
-    return cart.reduce((total, item) => {
-      const price = typeof item.menuItem.price === 'number' ? item.menuItem.price : 0;
-      return total + (price * item.quantity);
-    }, 0);
-  };
 
   const handleTableChange = async (newTableNumber: number) => {
     try {
@@ -222,8 +169,9 @@ const Customer: React.FC = () => {
       const session = await sessionService.createSession(newTableNumber);
       setSessionId(session.sessionId);
       setTableNumber(newTableNumber);
-      setCart([]);
+      clearCart();
       setCurrentOrder(null);
+      setSessionOrders([]);
     } catch (error) {
       alert('Failed to switch table');
     }
@@ -237,22 +185,12 @@ const Customer: React.FC = () => {
 
     setLoading(true);
     try {
-      // Check if this is a waiter order by examining route and auth
-      const token = localStorage.getItem('auth_token');
-      const role = localStorage.getItem('user_role');
-      const isWaiterOrder = location.pathname === '/waiter/order' && token && role === 'waiter';
-      
-      // For waiter-assisted ordering, no session needed
-      let currentSessionId = null;
-      
-      if (!isWaiterOrder) {
-        // For customer ordering, create session if not exists
-        currentSessionId = sessionId;
-        if (!currentSessionId) {
-          const session = await sessionService.createSession(tableNumber);
-          currentSessionId = session.sessionId;
-          setSessionId(currentSessionId);
-        }
+      // For customer ordering, create session if not exists
+      let currentSessionId = sessionId;
+      if (!currentSessionId) {
+        const session = await sessionService.createSession(tableNumber);
+        currentSessionId = session.sessionId;
+        setSessionId(currentSessionId);
       }
 
       const orderData = {
@@ -264,32 +202,14 @@ const Customer: React.FC = () => {
         }))
       };
       
-      // Use different endpoint based on who's ordering
-      let order;
-      if (isWaiterOrder) {
-        // Waiter-assisted orders go to /orders/waiter endpoint
-        order = await api.post<OrderWithItems>('/orders/waiter', orderData);
-      } else {
-        // Customer orders go to regular /orders endpoint
-        order = await api.createOrder(orderData);
-      }
+      // Customer orders go to /orders endpoint
+      const order = await api.createOrder(orderData);
       
       // Add to session orders list at the top
       setSessionOrders(prev => [order, ...prev]);
       
       // Clear cart to allow placing another order
-      setCart([]);
-      
-      // If waiter-assisted, redirect back to waiter dashboard with success message
-      if (isWaiterOrder) {
-        navigate('/waiter', { 
-          state: { 
-            orderSuccess: true, 
-            message: `Order #${order.id} placed successfully for Table ${tableNumber}!` 
-          } 
-        });
-        return;
-      }
+      clearCart();
       
       alert('✅ Order placed successfully!');
       
@@ -360,17 +280,14 @@ const Customer: React.FC = () => {
               </>
             )}
           </div>
-          {!isWaiterAssisted && (
-            <button 
-              className="call-waiter-btn" 
-              onClick={callWaiter}
-              title="Call your waiter"
-            >
-              🔔 Call Waiter
-            </button>
-          )}
-          {!isWaiterAssisted && (
-            <div className="auth-section">
+          <button 
+            className="call-waiter-btn" 
+            onClick={callWaiter}
+            title="Call your waiter"
+          >
+            🔔 Call Waiter
+          </button>
+          <div className="auth-section">
               {isLoggedIn ? (
                 <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
               ) : (
@@ -389,24 +306,17 @@ const Customer: React.FC = () => {
                   </button>
                 </div>
               )}
-            </div>
-          )}
+          </div>
         </div>
       </header>
 
-      {isLoggedIn && !isWaiterAssisted && (
+      {isLoggedIn && (
         <div className="welcome-message">
           Bună, {userName.split(' ')[0]}! 👋 Bucură-te de mesele noastre delicioase.
         </div>
       )}
 
-      {isWaiterAssisted && (
-        <div className="welcome-message">
-          👨‍🍳 Comandă Asistată de Chelner - {userName}
-        </div>
-      )}
-
-      {sessionOrders.length > 0 && !isWaiterAssisted && (
+      {sessionOrders.length > 0 && (
         <div className="order-history-section">
           <h2 className="history-title">Comenzile Tale din Sesiunea Curentă</h2>
           <div className="session-total">
@@ -453,70 +363,26 @@ const Customer: React.FC = () => {
       <div className="customer-content">
         <div className="cart-section">
           <h2>Coșul Meu</h2>
-          {cart.length === 0 ? (
-            <p className="empty-cart">Coșul este gol</p>
-          ) : (
-            <>
-              <div className="cart-items">
-                {cart.map(item => (
-                  <div key={item.menuItem.id} className="cart-item">
-                    <div className="cart-item-info">
-                      <h4>{item.menuItem.name}</h4>
-                      <p>{(typeof item.menuItem.price === 'number' ? item.menuItem.price : 0).toFixed(2)} Lei</p>
-                    </div>
-                    <div className="cart-item-controls">
-                      <button onClick={() => updateQuantity(item.menuItem.id, item.quantity - 1)}>-</button>
-                      <span>{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.menuItem.id, item.quantity + 1)}>+</button>
-                      <button className="remove-btn" onClick={() => removeFromCart(item.menuItem.id)}>✕</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="cart-total">
-                <h3>Total: {(getTotalPrice() || 0).toFixed(2)} Lei</h3>
-                <button 
-                  className="submit-order-btn" 
-                  onClick={submitOrder}
-                  disabled={loading}
-                >
-                  {loading ? 'Se trimite...' : 'Trimite Comanda'}
-                </button>
-                {sessionId && (
-                  <p className="session-info">Sesiune activă - Puteți plasa comenzi multiple</p>
-                )}
-              </div>
-            </>
-          )}
+          <CartDisplay
+            cart={cart}
+            onRemove={removeFromCart}
+            onUpdateQuantity={updateQuantity}
+            totalPrice={getTotalPrice()}
+            onSubmit={submitOrder}
+            loading={loading}
+            submitButtonText="Trimite Comanda"
+            showSessionInfo={!!sessionId}
+          />
         </div>
 
         <div className="menu-section">
-          <div className="category-tabs">
-            {categories.map(category => (
-              <button
-                key={category}
-                className={`category-tab ${selectedCategory === category ? 'active' : ''}`}
-                onClick={() => setSelectedCategory(category)}
-              >
-                {category}
-              </button>
-            ))}
-          </div>
-
-          <div className="menu-grid">
-            {filteredItems.map(item => (
-              <div key={item.id} className="menu-item-card">
-                <div className="menu-item-info">
-                  <h3>{item.name}</h3>
-                  <p className="menu-item-description">{item.description}</p>
-                  <p className="menu-item-price">{(typeof item.price === 'number' ? item.price : 0).toFixed(2)} Lei</p>
-                </div>
-                <button className="add-to-cart-btn" onClick={() => addToCart(item)}>
-                  Adaugă în Coș
-                </button>
-              </div>
-            ))}
-          </div>
+          <MenuDisplay
+            menuItems={menuItems}
+            categories={categories}
+            selectedCategory={selectedCategory}
+            onCategoryChange={setSelectedCategory}
+            onAddToCart={addToCart}
+          />
         </div>
       </div>
     </div>

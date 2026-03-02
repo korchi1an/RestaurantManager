@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Customer from './pages/Customer';
 import Kitchen from './pages/Kitchen';
 import Waiter from './pages/Waiter';
+import WaiterOrder from './pages/WaiterOrder';
 import QRCodes from './pages/QRCodes';
 import Login from './pages/Login';
 import CustomerLogin from './pages/CustomerLogin';
@@ -37,7 +38,14 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/table/:tableId" element={<Customer />} />
-            <Route path="/waiter/order" element={<Customer />} />
+            <Route 
+              path="/waiter/order" 
+              element={
+                <ProtectedRoute requiredRole="waiter">
+                  <WaiterOrder />
+                </ProtectedRoute>
+              } 
+            />
             <Route path="/login" element={<Login />} />
             <Route path="/customer-login" element={<CustomerLogin />} />
             <Route path="/customer-register" element={<Register />} />
