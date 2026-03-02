@@ -400,34 +400,62 @@ const Waiter: React.FC = () => {
           </div>
         ) : (
           <div className="orders-grid">
-            {servedOrders.map(order => (
-              <div key={order.id} className="waiter-order-card served-order">
-                <div className="order-header">
-                  <div>
-                    <h3>Masa {order.tableNumber}</h3>
-                    <p className="order-id">Comanda #{order.id}</p>
-                    <p className="order-time">Servit la: {formatTime(order.updatedAt)}</p>
+            {/* Group served orders by table */}
+            {Array.from(
+              servedOrders.reduce((acc, order) => {
+                if (!acc.has(order.tableNumber)) {
+                  acc.set(order.tableNumber, []);
+                }
+                acc.get(order.tableNumber)!.push(order);
+                return acc;
+              }, new Map<number, OrderWithItems[]>())
+            ).map(([tableNumber, orders]) => {
+              const tableTotal = orders.reduce((sum, order) => sum + order.totalPrice, 0);
+              return (
+                <div key={`table-${tableNumber}`} className="waiter-order-card served-table-card">
+                  <div className="order-header">
+                    <div>
+                      <h3>Masa {tableNumber}</h3>
+                      <p className="order-count">{orders.length} comandă{orders.length > 1 ? '' : ''} servită{orders.length > 1 ? '' : ''}</p>
+                    </div>
+                    <div className="status-badge served">SERVIT</div>
                   </div>
-                  <div className="status-badge served">SERVIT</div>
-                </div>
 
-                <div className="order-items-list">
-                  {order.items.map(item => (
-                    <div key={item.id} className="order-item">
-                      <span className="item-quantity">{item.quantity}x</span>
-                      <span className="item-name">{item.name}</span>
+                  {/* Show all orders for this table */}
+                  {orders.map(order => (
+                    <div key={order.id} className="served-order-details">
+                      <div className="order-mini-header">
+                        <span className="order-id">Comanda #{order.id}</span>
+                        <span className="order-time">{formatTime(order.updatedAt)}</span>
+                      </div>
+                      <div className="order-items-list">
+                        {order.items.map(item => (
+                          <div key={item.id} className="order-item">
+                            <span className="item-quantity">{item.quantity}x</span>
+                            <span className="item-name">{item.name}</span>
+                            <span className="item-price">{(item.price * item.quantity).toFixed(2)} Lei</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="order-subtotal">
+                        Subtotal: {order.totalPrice.toFixed(2)} Lei
+                      </div>
                     </div>
                   ))}
-                </div>
 
-                <div className="order-footer">
-                  <p className="order-total">Total: {order.totalPrice.toFixed(2)} Lei</p>
-                  <div className="order-status-info">
-                    <span className="status-text">⏳ Așteaptă plata</span>
+                  <div className="order-footer served-table-footer">
+                    <p className="order-total">Total Masă: {tableTotal.toFixed(2)} Lei</p>
+                    <button 
+                      className="pay-btn"
+                      onClick={() => markTableAsPaid(tableNumber)}
+                      disabled={loading}
+                    >
+                      💳 Marchează ca Plătit
+                    </button>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>

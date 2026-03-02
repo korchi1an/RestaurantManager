@@ -547,3 +547,97 @@
 .empty-state p {
   color: #999;
 }
+
+/* Served orders aggregated by table */
+.served-table-card {
+  border-left: 4px solid #FF9800;
+  background: linear-gradient(to bottom, #fff 0%, #fffaf0 100%);
+}
+
+.order-count {
+  color: #666;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+}
+
+.served-order-details {
+  background: white;
+  padding: 1rem;
+  margin: 0.75rem 0;
+  border-radius: 8px;
+  border: 1px solid #f0f0f0;
+}
+
+.order-mini-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.order-mini-header .order-id {
+  color: #999;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.order-mini-header .order-time {
+  color: #999;
+  font-size: 0.8rem;
+}
+
+.item-price {
+  color: #666;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.order-subtotal {
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid #f0f0f0;
+  text-align: right;
+  color: #666;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.served-table-footer {
+  background: linear-gradient(135deg, #FFE0B2 0%, #FFCC80 100%);
+  padding: 1rem;
+  margin: 0 -1.5rem -1.5rem -1.5rem;
+  border-radius: 0 0 12px 12px;
+}
+
+.served-table-footer .order-total {
+  color: #E65100;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.served-table-footer .pay-btn {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 8px rgba(245, 124, 0, 0.3);
+}
+
+.served-table-footer .pay-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 124, 0, 0.4);
+}
+
+.served-table-footer .pay-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
