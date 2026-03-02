@@ -43,12 +43,17 @@ const Customer: React.FC = () => {
       setIsWaiterAssisted(true);
       setIsLoggedIn(true);
       setUserName(name || 'Waiter');
-      // Waiter-assisted ordering: no session needed, just return
+      // Waiter-assisted ordering: no session needed, just load menu and return
       loadMenu();
       return;
     }
     
     loadMenu();
+    
+    // Don't create sessions for waiter-assisted orders
+    if (isWaiterOrderRoute) {
+      return;
+    }
     
     // If coming from QR code (tableId in URL), auto-create session
     if (tableId) {
@@ -232,10 +237,15 @@ const Customer: React.FC = () => {
 
     setLoading(true);
     try {
+      // Check if this is a waiter order by examining route and auth
+      const token = localStorage.getItem('auth_token');
+      const role = localStorage.getItem('user_role');
+      const isWaiterOrder = location.pathname === '/waiter/order' && token && role === 'waiter';
+      
       // For waiter-assisted ordering, no session needed
       let currentSessionId = null;
       
-      if (!isWaiterAssisted) {
+      if (!isWaiterOrder) {
         // For customer ordering, create session if not exists
         currentSessionId = sessionId;
         if (!currentSessionId) {
@@ -256,7 +266,7 @@ const Customer: React.FC = () => {
       
       // Use different endpoint based on who's ordering
       let order;
-      if (isWaiterAssisted) {
+      if (isWaiterOrder) {
         // Waiter-assisted orders go to /orders/waiter endpoint
         order = await api.post<OrderWithItems>('/orders/waiter', orderData);
       } else {
@@ -271,13 +281,15 @@ const Customer: React.FC = () => {
       setCart([]);
       
       // If waiter-assisted, redirect back to waiter dashboard with success message
-      if (isWaiterAssisted) {
+      if (isWaiterOrder) {
         navigate('/waiter', { 
           state: { 
             orderSuccess: true, 
             message: `Order #${order.id} placed successfully for Table ${tableNumber}!` 
           } 
         });
+        return;
+      }
         return;
       }
       
