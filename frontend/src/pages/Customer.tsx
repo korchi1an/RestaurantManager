@@ -247,13 +247,19 @@ const Customer: React.FC = () => {
       // Clear cart to allow placing another order
       setCart([]);
       
-      alert('✅ Order placed successfully!');
-      
-      // If waiter-assisted, redirect back to waiter dashboard
+      // If waiter-assisted, redirect back to waiter dashboard with success message
       if (isWaiterAssisted) {
-        navigate('/waiter');
+        navigate('/waiter', { 
+          replace: true, 
+          state: { 
+            orderSuccess: true, 
+            message: `Order #${order.id} placed successfully for Table ${tableNumber}!` 
+          } 
+        });
         return;
       }
+      
+      alert('✅ Order placed successfully!');
       
       // Keep session active for additional orders
     } catch (error: any) {

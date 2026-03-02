@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { OrderWithItems } from '../types';
 import { api } from '../services/api';
 import socketService from '../services/socket';
@@ -7,12 +7,14 @@ import '../styles/Waiter.css';
 
 const Waiter: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [readyOrders, setReadyOrders] = useState<OrderWithItems[]>([]);
   const [assignedTables, setAssignedTables] = useState<any[]>([]);
   const [tableUnpaidTotals, setTableUnpaidTotals] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState<string>('');
   const [waiterCalls, setWaiterCalls] = useState<{ tableNumber: number; customerName: string; timestamp: string }[]>([]);
+  const [successMessage, setSuccessMessage] = useState<string>('');
 
   // Use ref to access latest assignedTables in socket listener
   const assignedTablesRef = React.useRef<any[]>([]);
@@ -22,6 +24,15 @@ const Waiter: React.FC = () => {
   }, [assignedTables]);
 
   useEffect(() => {
+    // Check for success message from order placement
+    const state = location.state as { orderSuccess?: boolean; message?: string };
+    if (state?.orderSuccess) {
+      setSuccessMessage(state.message || 'Order placed successfully!');
+      setTimeout(() => setSuccessMessage(''), 3000);
+      // Clear the state
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+
     loadAssignedTables();
     loadOrders();
     loadUnpaidTotals();
@@ -231,6 +242,14 @@ const Waiter: React.FC = () => {
           <button className="refresh-btn" onClick={() => { loadOrders(); loadUnpaidTotals(); }}>Actualizează</button>
         </div>
       </header>
+
+      {successMessage && (
+        <div className="success-notification">
+          <div className="success-content">
+            ✅ {successMessage}
+          </div>
+        </div>
+      )}
 
       {waiterCalls.length > 0 && (
         <div className="waiter-calls-container">
