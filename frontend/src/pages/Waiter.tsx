@@ -311,7 +311,7 @@ const Waiter: React.FC = () => {
                     <div className="table-info">
                       <h4>Masa {table.table_number}</h4>
                       <div className="table-stats">
-                        <span className="unpaid-badge">Neplătit: {unpaidTotal.toFixed(2)} Lei</span>
+                        <span className="unpaid-badge">Neplătit: {(typeof unpaidTotal === 'number' ? unpaidTotal : 0).toFixed(2)} Lei</span>
                         <button 
                           className="pay-btn"
                           onClick={() => markTableAsPaid(table.table_number)}
@@ -409,7 +409,7 @@ const Waiter: React.FC = () => {
                 </div>
 
                 <div className="order-footer">
-                  <p className="order-total">Total: {order.totalPrice.toFixed(2)} Lei</p>
+                  <p className="order-total">Total: {(typeof order.totalPrice === 'number' ? order.totalPrice : 0).toFixed(2)} Lei</p>
                   <button 
                     className="btn-serve" 
                     onClick={() => markAsServed(order.id)}
