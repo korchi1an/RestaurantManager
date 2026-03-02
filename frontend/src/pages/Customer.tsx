@@ -254,7 +254,15 @@ const Customer: React.FC = () => {
         }))
       };
       
-      const order = await api.createOrder(orderData);
+      // Use different endpoint based on who's ordering
+      let order;
+      if (isWaiterAssisted) {
+        // Waiter-assisted orders go to /orders/waiter endpoint
+        order = await api.post<OrderWithItems>('/orders/waiter', orderData);
+      } else {
+        // Customer orders go to regular /orders endpoint
+        order = await api.createOrder(orderData);
+      }
       
       // Add to session orders list at the top
       setSessionOrders(prev => [order, ...prev]);

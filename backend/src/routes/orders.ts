@@ -7,6 +7,131 @@ import SocketManager from '../utils/socketManager';
 
 const router = Router();
 
+// POST /api/orders/waiter - Create order by waiter (Waiter only)
+router.post('/waiter', authenticate, authorize('waiter', 'admin'), async (req: AuthRequest, res: Response) => {
+  try {
+    const orderData: CreateOrderRequest = req.body;
+    const waiterId = req.user?.id;
+    const waiterName = req.user?.username;
+    
+    logger.info('WAITER ORDER - Waiter-assisted order received', { 
+      waiterId, 
+      waiterName,
+      tableNumber: orderData.tableNumber, 
+      itemsCount: orderData.items?.length 
+    });
+    
+    if (!orderData.tableNumber || !orderData.items || orderData.items.length === 0) {
+      logger.warn('WAITER ORDER - Invalid order data, missing required fields');
+      return res.status(400).json({ error: 'Invalid order data' });
+    }
+    
+    // Calculate total price
+    let totalPrice = 0;
+    const itemsWithPrices = [];
+    
+    for (const item of orderData.items) {
+      const menuItemResult = await pool.query('SELECT * FROM menu_items WHERE id = $1', [item.menuItemId]);
+      if (menuItemResult.rows.length === 0) {
+        return res.status(400).json({ error: `Menu item ${item.menuItemId} not found` });
+      }
+      const menuItem = menuItemResult.rows[0];
+      const itemTotal = parseFloat(menuItem.price) * item.quantity;
+      totalPrice += itemTotal;
+      itemsWithPrices.push({
+        menuItemId: item.menuItemId,
+        quantity: item.quantity,
+        price: menuItem.price
+      });
+    }
+    
+    logger.info('WAITER ORDER - Creating waiter-assisted order', { 
+      waiterId,
+      waiterName,
+      tableNumber: orderData.tableNumber, 
+      totalPrice, 
+      itemsCount: itemsWithPrices.length 
+    });
+    
+    // Insert order with waiter ID (no session for waiter orders)
+    const orderResult = await pool.query(`
+      INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_by_employee_id, created_at, updated_at)
+      VALUES (1, NULL, $1, 'Pending', $2, $3, NOW(), NOW())
+      RETURNING id
+    `, [orderData.tableNumber, totalPrice, waiterId]);
+    
+    const orderId = orderResult.rows[0].id;
+    logger.info('WAITER ORDER - Order inserted', { 
+      orderId, 
+      tableNumber: orderData.tableNumber,
+      createdByWaiter: waiterId,
+      waiterName
+    });
+    
+    // Insert order items
+    for (const item of itemsWithPrices) {
+      await pool.query(`
+        INSERT INTO order_items (order_id, menu_item_id, quantity, price)
+        VALUES ($1, $2, $3, $4)
+      `, [orderId, item.menuItemId, item.quantity, item.price]);
+    }
+    
+    // Fetch the created order
+    const fetchResult = await pool.query(`
+      SELECT o.*, 
+        json_agg(
+          json_build_object(
+            'id', oi.id,
+            'orderId', oi.order_id,
+            'menuItemId', oi.menu_item_id,
+            'quantity', oi.quantity,
+            'price', oi.price,
+            'name', mi.name,
+            'category', mi.category
+          )
+        ) FILTER (WHERE oi.id IS NOT NULL) as items
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+      WHERE o.id = $1
+      GROUP BY o.id
+    `, [orderId]);
+    
+    const order = fetchResult.rows[0];
+    
+    const formattedOrder: OrderWithItems = {
+      id: order.id,
+      orderNumber: order.order_number,
+      sessionId: order.session_id,
+      tableNumber: order.table_number,
+      status: order.status,
+      totalPrice: parseFloat(order.total_price),
+      createdAt: order.created_at,
+      updatedAt: order.updated_at,
+      items: order.items || []
+    };
+    
+    logger.info('WAITER ORDER - Created successfully', { 
+      orderId, 
+      tableNumber: order.table_number,
+      status: order.status,
+      createdByWaiter: waiterId,
+      waiterName 
+    });
+    
+    // Emit socket event
+    if (SocketManager.isInitialized()) {
+      const io = SocketManager.getIO();
+      io.emit('orderCreated', formattedOrder);
+    }
+    
+    res.status(201).json(formattedOrder);
+  } catch (error) {
+    logger.error('WAITER ORDER - Error creating waiter-assisted order', { error, waiterId: req.user?.id });
+    res.status(500).json({ error: 'Failed to create order' });
+  }
+});
+
 // GET /api/orders - Get all orders (Kitchen and Waiter only)
 router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), async (req: AuthRequest, res: Response) => {
   const userRole = req.user?.role;
