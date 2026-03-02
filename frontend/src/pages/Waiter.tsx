@@ -9,7 +9,6 @@ const Waiter: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [readyOrders, setReadyOrders] = useState<OrderWithItems[]>([]);
-  const [servedOrdersByTable, setServedOrdersByTable] = useState<Map<number, number>>(new Map());
   const [assignedTables, setAssignedTables] = useState<any[]>([]);
   const [tableUnpaidTotals, setTableUnpaidTotals] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -81,24 +80,9 @@ const Waiter: React.FC = () => {
           }
           return [...prev, orderWithNumbers];
         });
-      } else if (orderWithNumbers.status === 'Served') {
-        // Remove from ready orders, update served totals
+      } else if (orderWithNumbers.status === 'Served' || orderWithNumbers.status === 'Paid') {
+        // Remove from ready orders when served or paid
         setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
-        setServedOrdersByTable(prev => {
-          const newMap = new Map(prev);
-          const current = newMap.get(orderWithNumbers.tableNumber) || 0;
-          const price = typeof orderWithNumbers.totalPrice === 'number' && !isNaN(orderWithNumbers.totalPrice) ? orderWithNumbers.totalPrice : 0;
-          newMap.set(orderWithNumbers.tableNumber, current + price);
-          return newMap;
-        });
-      } else if (orderWithNumbers.status === 'Paid') {
-        // Remove from ready orders and served totals
-        setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
-        setServedOrdersByTable(prev => {
-          const newMap = new Map(prev);
-          newMap.delete(orderWithNumbers.tableNumber);
-          return newMap;
-        });
       }
       
       // Always reload unpaid totals when order status changes
@@ -177,16 +161,6 @@ const Waiter: React.FC = () => {
       }));
       const ready = ordersWithNumbers.filter(order => order.status === 'Ready');
       setReadyOrders(ready);
-      
-      // Calculate served orders totals by table
-      const served = ordersWithNumbers.filter(order => order.status === 'Served');
-      const servedMap = new Map<number, number>();
-      served.forEach(order => {
-        const current = servedMap.get(order.tableNumber) || 0;
-        const price = typeof order.totalPrice === 'number' && !isNaN(order.totalPrice) ? order.totalPrice : 0;
-        servedMap.set(order.tableNumber, current + price);
-      });
-      setServedOrdersByTable(servedMap);
     } catch (error) {
       console.error('Error loading orders:', error);
     }
@@ -337,33 +311,9 @@ const Waiter: React.FC = () => {
       {assignedTables.length > 0 && assignedTables.filter(table => {
         const unpaidTotal = tableUnpaidTotals.get(table.table_number) || 0;
         return unpaidTotal > 0;
-      }).length === 0 && servedOrdersByTable.size === 0 && (
+      }).length === 0 && (
         <div className="no-tables-warning">
           <p>✓ Toate mesele tale sunt plătite!</p>
-        </div>
-      )}
-
-      {servedOrdersByTable.size > 0 && (
-        <div className="served-orders-summary">
-          <h3>Comenzi Servite (Așteaptă plata)</h3>
-          <div className="served-tables-list">
-            {Array.from(servedOrdersByTable.entries())
-              .filter(([_, total]) => typeof total === 'number' && !isNaN(total) && total > 0)
-              .sort((a, b) => a[0] - b[0])
-              .map(([tableNumber, total]) => (
-                <div key={tableNumber} className="served-table-item">
-                  <span className="table-label">Masa {tableNumber}</span>
-                  <span className="table-total">{(total || 0).toFixed(2)} Lei</span>
-                  <button 
-                    className="pay-btn-small"
-                    onClick={() => markTableAsPaid(tableNumber)}
-                    disabled={loading}
-                  >
-                    💳 Plătește
-                  </button>
-                </div>
-              ))}
-          </div>
         </div>
       )}
 
