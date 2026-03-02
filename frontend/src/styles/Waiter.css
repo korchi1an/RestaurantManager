@@ -443,6 +443,18 @@
   cursor: not-allowed;
 }
 
+.order-status-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.status-text {
+  color: #FF9800;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .btn-pay {
   padding: 0.75rem 1.5rem;
   background: #FF9800;

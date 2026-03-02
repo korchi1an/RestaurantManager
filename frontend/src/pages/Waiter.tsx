@@ -9,6 +9,7 @@ const Waiter: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [readyOrders, setReadyOrders] = useState<OrderWithItems[]>([]);
+  const [servedOrders, setServedOrders] = useState<OrderWithItems[]>([]);
   const [assignedTables, setAssignedTables] = useState<any[]>([]);
   const [tableUnpaidTotals, setTableUnpaidTotals] = useState<Map<number, number>>(new Map());
   const [loading, setLoading] = useState(false);
@@ -80,9 +81,21 @@ const Waiter: React.FC = () => {
           }
           return [...prev, orderWithNumbers];
         });
-      } else if (orderWithNumbers.status === 'Served' || orderWithNumbers.status === 'Paid') {
-        // Remove from ready orders when marked as served or paid
+      } else if (orderWithNumbers.status === 'Served') {
+        // Add to served orders
+        setServedOrders(prev => {
+          const exists = prev.some(o => o.id === orderWithNumbers.id);
+          if (exists) {
+            return prev.map(o => o.id === orderWithNumbers.id ? orderWithNumbers : o);
+          }
+          return [...prev, orderWithNumbers];
+        });
+        // Remove from ready orders
         setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
+      } else if (orderWithNumbers.status === 'Paid') {
+        // Remove from both ready and served orders when marked as paid
+        setReadyOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
+        setServedOrders(prev => prev.filter(o => o.id !== orderWithNumbers.id));
       }
       
       // Always reload unpaid totals when order status changes
@@ -160,7 +173,9 @@ const Waiter: React.FC = () => {
         }))
       }));
       const ready = ordersWithNumbers.filter(order => order.status === 'Ready');
+      const served = ordersWithNumbers.filter(order => order.status === 'Served');
       setReadyOrders(ready);
+      setServedOrders(served);
     } catch (error) {
       console.error('Error loading orders:', error);
     }
@@ -327,6 +342,10 @@ const Waiter: React.FC = () => {
           <h3>Gata de Servit</h3>
           <p className="stat-number">{readyOrders.length}</p>
         </div>
+        <div className="stat-card served">
+          <h3>Servite (Neplătite)</h3>
+          <p className="stat-number">{servedOrders.length}</p>
+        </div>
       </div>
 
       <section className="orders-section">
@@ -366,6 +385,46 @@ const Waiter: React.FC = () => {
                   >
                     ✓ Marchează ca Servit
                   </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="orders-section">
+        <h2 className="section-title">Comenzi Servite (Așteptând plata)</h2>
+        {servedOrders.length === 0 ? (
+          <div className="empty-state">
+            <p>Nu există comenzi servite în așteptarea plății</p>
+          </div>
+        ) : (
+          <div className="orders-grid">
+            {servedOrders.map(order => (
+              <div key={order.id} className="waiter-order-card served-order">
+                <div className="order-header">
+                  <div>
+                    <h3>Masa {order.tableNumber}</h3>
+                    <p className="order-id">Comanda #{order.id}</p>
+                    <p className="order-time">Servit la: {formatTime(order.updatedAt)}</p>
+                  </div>
+                  <div className="status-badge served">SERVIT</div>
+                </div>
+
+                <div className="order-items-list">
+                  {order.items.map(item => (
+                    <div key={item.id} className="order-item">
+                      <span className="item-quantity">{item.quantity}x</span>
+                      <span className="item-name">{item.name}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="order-footer">
+                  <p className="order-total">Total: {order.totalPrice.toFixed(2)} Lei</p>
+                  <div className="order-status-info">
+                    <span className="status-text">⏳ Așteaptă plata</span>
+                  </div>
                 </div>
               </div>
             ))}
