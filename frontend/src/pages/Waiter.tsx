@@ -141,7 +141,11 @@ const Waiter: React.FC = () => {
         totalsMap.set(table.table_number, unpaidTotal);
       }
       
+      // Update both assigned tables and unpaid totals to keep them in sync
+      setAssignedTables(tables);
       setTableUnpaidTotals(totalsMap);
+      // Update ref for socket handlers
+      assignedTablesRef.current = tables;
     } catch (error) {
       console.error('Error loading unpaid totals:', error);
     }
