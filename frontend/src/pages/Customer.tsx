@@ -193,7 +193,10 @@ const Customer: React.FC = () => {
   };
 
   const getTotalPrice = () => {
-    return cart.reduce((total, item) => total + (item.menuItem.price * item.quantity), 0);
+    return cart.reduce((total, item) => {
+      const price = typeof item.menuItem.price === 'number' ? item.menuItem.price : 0;
+      return total + (price * item.quantity);
+    }, 0);
   };
 
   const handleTableChange = async (newTableNumber: number) => {
@@ -379,7 +382,7 @@ const Customer: React.FC = () => {
           <div className="session-total">
             <span className="total-label">Total Sesiune:</span>
             <span className="total-amount">
-              {sessionOrders.reduce((sum, order) => sum + order.totalPrice, 0).toFixed(2)} Lei
+              {sessionOrders.reduce((sum, order) => sum + (typeof order.totalPrice === 'number' ? order.totalPrice : 0), 0).toFixed(2)} Lei
             </span>
           </div>
           {sessionOrders.map((order) => (
@@ -393,7 +396,7 @@ const Customer: React.FC = () => {
                   {order.status === 'Served' && '🍽️ Servit'}
                   {order.status === 'Paid' && '💰 Plătit'}
                 </span>
-                <span className="order-total">{order.totalPrice.toFixed(2)} Lei</span>
+                <span className="order-total">{(typeof order.totalPrice === 'number' ? order.totalPrice : 0).toFixed(2)} Lei</span>
               </div>
               {order.items && order.items.length > 0 && (
                 <div className="order-items-summary">
@@ -429,7 +432,7 @@ const Customer: React.FC = () => {
                   <div key={item.menuItem.id} className="cart-item">
                     <div className="cart-item-info">
                       <h4>{item.menuItem.name}</h4>
-                      <p>{item.menuItem.price.toFixed(2)} Lei</p>
+                      <p>{(typeof item.menuItem.price === 'number' ? item.menuItem.price : 0).toFixed(2)} Lei</p>
                     </div>
                     <div className="cart-item-controls">
                       <button onClick={() => updateQuantity(item.menuItem.id, item.quantity - 1)}>-</button>
@@ -441,7 +444,7 @@ const Customer: React.FC = () => {
                 ))}
               </div>
               <div className="cart-total">
-                <h3>Total: {getTotalPrice().toFixed(2)} Lei</h3>
+                <h3>Total: {(getTotalPrice() || 0).toFixed(2)} Lei</h3>
                 <button 
                   className="submit-order-btn" 
                   onClick={submitOrder}
@@ -476,7 +479,7 @@ const Customer: React.FC = () => {
                 <div className="menu-item-info">
                   <h3>{item.name}</h3>
                   <p className="menu-item-description">{item.description}</p>
-                  <p className="menu-item-price">{item.price.toFixed(2)} Lei</p>
+                  <p className="menu-item-price">{(typeof item.price === 'number' ? item.price : 0).toFixed(2)} Lei</p>
                 </div>
                 <button className="add-to-cart-btn" onClick={() => addToCart(item)}>
                   Adaugă în Coș
