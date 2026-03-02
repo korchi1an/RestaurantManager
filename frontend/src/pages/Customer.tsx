@@ -336,32 +336,40 @@ const Customer: React.FC = () => {
               🔔 Call Waiter
             </button>
           )}
-          <div className="auth-section">
-            {isLoggedIn ? (
-              <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
-            ) : (
-              <div className="auth-buttons">
-                <button 
-                  className="login-btn" 
-                  onClick={() => navigate('/customer-login', { state: { tableId } })}
-                >
-                  Login
-                </button>
-                <button 
-                  className="register-btn" 
-                  onClick={() => navigate('/customer-register', { state: { tableId } })}
-                >
-                  Înregistrare
-                </button>
-              </div>
-            )}
-          </div>
+          {!isWaiterAssisted && (
+            <div className="auth-section">
+              {isLoggedIn ? (
+                <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
+              ) : (
+                <div className="auth-buttons">
+                  <button 
+                    className="login-btn" 
+                    onClick={() => navigate('/customer-login', { state: { tableId } })}
+                  >
+                    Login
+                  </button>
+                  <button 
+                    className="register-btn" 
+                    onClick={() => navigate('/customer-register', { state: { tableId } })}
+                  >
+                    Înregistrare
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
-      {isLoggedIn && (
+      {isLoggedIn && !isWaiterAssisted && (
         <div className="welcome-message">
           Bună, {userName.split(' ')[0]}! 👋 Bucură-te de mesele noastre delicioase.
+        </div>
+      )}
+
+      {isWaiterAssisted && (
+        <div className="welcome-message">
+          👨‍🍳 Comandă Asistată de Chelner - {userName}
         </div>
       )}
 
