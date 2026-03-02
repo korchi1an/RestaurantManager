@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { MenuItem, CartItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
 import socketService from '../services/socket';
@@ -9,6 +9,7 @@ import '../styles/Customer.css';
 const Customer: React.FC = () => {
   const { tableId } = useParams<{ tableId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -29,13 +30,16 @@ const Customer: React.FC = () => {
     const name = localStorage.getItem('user_name');
     const role = localStorage.getItem('user_role');
     
-    if (token && role === 'customer') {
+    // Only treat as waiter-assisted if on /waiter/order route
+    const isWaiterOrderRoute = location.pathname === '/waiter/order';
+    
+    if (token && role === 'customer' && !isWaiterOrderRoute) {
       setIsLoggedIn(true);
       setUserName(name || 'Customer');
     }
     
-    // Check if this is waiter-assisted ordering
-    if (token && role === 'waiter') {
+    // Check if this is waiter-assisted ordering (only on /waiter/order route)
+    if (token && role === 'waiter' && isWaiterOrderRoute) {
       setIsWaiterAssisted(true);
       setIsLoggedIn(true);
       setUserName(name || 'Waiter');
@@ -70,7 +74,7 @@ const Customer: React.FC = () => {
         setTableNumber(storedSession.tableNumber);
       }
     }
-  }, [tableId]);
+  }, [tableId, location.pathname]);
 
   useEffect(() => {
     // Connect socket once
