@@ -27,11 +27,11 @@ const Customer: React.FC = () => {
   const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
 
   useEffect(() => {
-    // Check if customer is logged in
-    const token = localStorage.getItem('auth_token');
-    const name = localStorage.getItem('user_name');
-    const role = localStorage.getItem('user_role');
-    
+    // Check if customer is logged in (uses customer-specific keys, separate from staff auth)
+    const token = localStorage.getItem('customer_auth_token');
+    const name = localStorage.getItem('customer_user_name');
+    const role = localStorage.getItem('customer_user_role');
+
     if (token && role === 'customer') {
       setIsLoggedIn(true);
       setUserName(name || 'Customer');
@@ -240,10 +240,11 @@ const Customer: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_role');
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('user_name');
+    // Only clear customer-specific keys — never touch staff auth credentials
+    localStorage.removeItem('customer_auth_token');
+    localStorage.removeItem('customer_user_role');
+    localStorage.removeItem('customer_user_id');
+    localStorage.removeItem('customer_user_name');
     setIsLoggedIn(false);
     setUserName('');
   };

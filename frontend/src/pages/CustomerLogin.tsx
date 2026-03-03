@@ -24,11 +24,12 @@ export default function CustomerLogin() {
         password,
       });
 
-      // Store token in localStorage
-      localStorage.setItem('auth_token', response.token);
-      localStorage.setItem('user_role', response.user.role);
-      localStorage.setItem('user_id', response.user.id.toString());
-      localStorage.setItem('user_name', response.user.full_name || response.user.username);
+      // Store customer token under customer-specific keys to avoid
+      // overwriting staff (waiter/kitchen/admin) credentials
+      localStorage.setItem('customer_auth_token', response.token);
+      localStorage.setItem('customer_user_role', response.user.role);
+      localStorage.setItem('customer_user_id', response.user.id.toString());
+      localStorage.setItem('customer_user_name', response.user.full_name || response.user.username);
 
       // Redirect back to customer page (with tableId if available)
       if (tableId) {
