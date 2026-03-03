@@ -19,19 +19,10 @@ const WaiterOrder: React.FC = () => {
   const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
 
   useEffect(() => {
-    // Verify waiter authentication
-    const token = localStorage.getItem('auth_token');
-    const role = localStorage.getItem('user_role');
     const name = localStorage.getItem('user_name');
-
-    if (!token || role !== 'waiter') {
-      navigate('/login', { replace: true });
-      return;
-    }
-
     setUserName(name || 'Waiter');
     loadMenu();
-  }, [navigate]);
+  }, []);
 
   const loadMenu = async () => {
     try {

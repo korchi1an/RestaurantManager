@@ -23,7 +23,7 @@ function ProtectedRoute({ children, requiredRole }: { children: JSX.Element; req
   // Handle single role or array of roles
   const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
   
-  if (!allowedRoles.includes('any') && userRole && !allowedRoles.includes(userRole)) {
+  if (!allowedRoles.includes('any') && !allowedRoles.includes(userRole || '')) {
     return <Navigate to="/login" replace />;
   }
 
