@@ -100,10 +100,10 @@ const Kitchen: React.FC = () => {
     oscillator.stop(audioContext.currentTime + 0.2);
   };
 
-  const markAsReady = async (orderId: number) => {
+  const markTableAsPreparing = async (tableNumber: number) => {
     setLoading(true);
     try {
-      await api.updateOrderStatus(orderId, 'Ready');
+      await api.updateTableOrdersStatus(tableNumber, 'Preparing');
     } catch (error) {
       alert('Failed to update order status');
     } finally {
@@ -111,10 +111,10 @@ const Kitchen: React.FC = () => {
     }
   };
 
-  const markAsPreparing = async (orderId: number) => {
+  const markTableAsReady = async (tableNumber: number) => {
     setLoading(true);
     try {
-      await api.updateOrderStatus(orderId, 'Preparing');
+      await api.updateTableOrdersStatus(tableNumber, 'Ready');
     } catch (error) {
       alert('Failed to update order status');
     } finally {
@@ -181,6 +181,26 @@ const Kitchen: React.FC = () => {
           .map(([tableNum, tableOrders]) => (
             <div key={tableNum} className="table-orders">
               <h2 className="table-header">Masa {tableNum}</h2>
+              <div className="table-actions">
+                {tableOrders.some(o => o.status === 'Pending') && (
+                  <button
+                    className="btn-preparing"
+                    onClick={() => markTableAsPreparing(Number(tableNum))}
+                    disabled={loading}
+                  >
+                    Începe Prepararea
+                  </button>
+                )}
+                {tableOrders.some(o => o.status === 'Pending' || o.status === 'Preparing') && (
+                  <button
+                    className="btn-ready"
+                    onClick={() => markTableAsReady(Number(tableNum))}
+                    disabled={loading}
+                  >
+                    Marchează ca Gata
+                  </button>
+                )}
+              </div>
               {tableOrders.map(order => (
                 <div key={order.id} className="kitchen-order-card">
                   <div className="order-header">
@@ -188,8 +208,8 @@ const Kitchen: React.FC = () => {
                       <h3>Comanda #{order.id}</h3>
                       <p className="order-time">{formatTime(order.createdAt)}</p>
                     </div>
-                    <div 
-                      className="order-status-badge" 
+                    <div
+                      className="order-status-badge"
                       style={{ backgroundColor: getStatusColor(order.status) }}
                     >
                       {order.status === 'Pending' ? 'În Așteptare' : order.status === 'Preparing' ? 'În Preparare' : 'Gata'}
@@ -203,27 +223,6 @@ const Kitchen: React.FC = () => {
                         <span className="item-name">{item.name}</span>
                       </div>
                     ))}
-                  </div>
-
-                  <div className="order-actions">
-                    {order.status === 'Pending' && (
-                      <button 
-                        className="btn-preparing" 
-                        onClick={() => markAsPreparing(order.id)}
-                        disabled={loading}
-                      >
-                        Începe Prepararea
-                      </button>
-                    )}
-                    {(order.status === 'Pending' || order.status === 'Preparing') && (
-                      <button 
-                        className="btn-ready" 
-                        onClick={() => markAsReady(order.id)}
-                        disabled={loading}
-                      >
-                        Marchează ca Gata
-                      </button>
-                    )}
                   </div>
                 </div>
               ))}

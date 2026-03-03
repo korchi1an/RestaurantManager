@@ -360,6 +360,89 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
+// PATCH /api/orders/table/:tableNumber/status - Bulk update all orders for a table
+router.patch('/table/:tableNumber/status', authenticate, authorize('kitchen', 'waiter', 'admin'), async (req: Request, res: Response) => {
+  try {
+    const tableNumber = parseInt(req.params.tableNumber);
+    const { status } = req.body;
+    const validStatuses = ['Preparing', 'Ready'];
+
+    if (!status || !validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be Preparing or Ready.' });
+    }
+
+    // Determine which current statuses to update from
+    const fromStatuses = status === 'Preparing' ? ['Pending'] : ['Pending', 'Preparing'];
+    const placeholders = fromStatuses.map((_, i) => `$${i + 2}`).join(', ');
+
+    const updateResult = await pool.query(
+      `UPDATE orders SET status = $1, updated_at = NOW()
+       WHERE table_number = $${fromStatuses.length + 2} AND status IN (${placeholders})
+       RETURNING id`,
+      [status, ...fromStatuses, tableNumber]
+    );
+
+    if (updateResult.rowCount === 0) {
+      return res.json({ success: true, updated: [] });
+    }
+
+    const updatedIds: number[] = updateResult.rows.map((r: any) => r.id);
+
+    // Fetch each updated order with items and emit socket events
+    const updatedOrders: OrderWithItems[] = [];
+    for (const orderId of updatedIds) {
+      const fetchResult = await pool.query(`
+        SELECT o.*,
+          json_agg(
+            json_build_object(
+              'id', oi.id,
+              'orderId', oi.order_id,
+              'menuItemId', oi.menu_item_id,
+              'quantity', oi.quantity,
+              'price', oi.price,
+              'name', mi.name,
+              'category', mi.category
+            )
+          ) FILTER (WHERE oi.id IS NOT NULL) as items
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+        WHERE o.id = $1
+        GROUP BY o.id
+      `, [orderId]);
+
+      const order = fetchResult.rows[0];
+      const formattedOrder: OrderWithItems = {
+        id: order.id,
+        orderNumber: order.order_number,
+        sessionId: order.session_id,
+        tableNumber: order.table_number,
+        status: order.status,
+        totalPrice: parseFloat(order.total_price),
+        createdAt: order.created_at,
+        updatedAt: order.updated_at,
+        items: order.items || []
+      };
+
+      updatedOrders.push(formattedOrder);
+
+      if (SocketManager.isInitialized()) {
+        const io = SocketManager.getIO();
+        io.emit('orderUpdated', formattedOrder);
+        if (status === 'Ready') {
+          io.emit('orderReady', formattedOrder);
+        }
+      }
+    }
+
+    logger.info('ORDER STATUS BULK - Table orders updated', { tableNumber, status, count: updatedOrders.length });
+    res.json({ success: true, updated: updatedOrders });
+  } catch (error) {
+    logger.error('ORDER STATUS BULK - Error updating table orders', { error, tableNumber: req.params.tableNumber });
+    res.status(500).json({ error: 'Failed to update table orders' });
+  }
+});
+
 // PATCH /api/orders/:id/status - Update order status (Kitchen and Waiter only)
 router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'), async (req: Request, res: Response) => {
   try {

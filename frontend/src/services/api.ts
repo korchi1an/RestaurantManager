@@ -209,6 +209,13 @@ export const api = {
     });
   },
 
+  async updateTableOrdersStatus(tableNumber: number, status: string): Promise<{ success: boolean; updated: OrderWithItems[] }> {
+    return request<{ success: boolean; updated: OrderWithItems[] }>(`/orders/table/${tableNumber}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status }),
+    });
+  },
+
   async cancelOrder(orderId: number): Promise<{ success: boolean; message: string }> {
     return request<{ success: boolean; message: string }>(`/orders/${orderId}`, {
       method: 'DELETE',
