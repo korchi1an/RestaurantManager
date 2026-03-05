@@ -10,30 +10,29 @@ import Register from './pages/Register';
 import TableAssignments from './pages/TableAssignments';
 import './styles/App.css';
 
-function isTokenExpired(token: string): boolean {
+function decodeToken(token: string): { exp: number; role: string } | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]));
-    return payload.exp * 1000 < Date.now();
+    return JSON.parse(atob(token.split('.')[1]));
   } catch {
-    return true;
+    return null;
   }
 }
 
 // Protected route wrapper for Kitchen and Waiter pages
 function ProtectedRoute({ children, requiredRole }: { children: JSX.Element; requiredRole: string | string[] }) {
   const token = localStorage.getItem('auth_token');
-  const userRole = localStorage.getItem('user_role');
+  const payload = token ? decodeToken(token) : null;
 
-  if (!token || isTokenExpired(token)) {
+  if (!token || !payload || payload.exp * 1000 < Date.now()) {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user_role');
     return <Navigate to="/login" replace />;
   }
 
-  // Handle single role or array of roles
+  // Role comes from the JWT itself — not the separate user_role key,
+  // which can be stale when localStorage is shared across tabs.
   const allowedRoles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
-  
-  if (!allowedRoles.includes('any') && !allowedRoles.includes(userRole || '')) {
+  if (!allowedRoles.includes('any') && !allowedRoles.includes(payload.role)) {
     return <Navigate to="/login" replace />;
   }
 
