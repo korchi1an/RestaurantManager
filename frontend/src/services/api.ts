@@ -87,6 +87,9 @@ async function fetchWithRetry(
   throw new ApiError('Max retries exceeded');
 }
 
+// Prevent multiple concurrent 401 redirects
+let isRedirectingToLogin = false;
+
 // Enhanced request handler
 async function request<T>(
   endpoint: string,
@@ -129,12 +132,15 @@ async function request<T>(
     // Handle errors
     if (!response.ok) {
       if (response.status === 401) {
-        // Session expired or invalid — clear auth state and redirect to login
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('user_role');
-        localStorage.removeItem('user_id');
-        localStorage.removeItem('user_name');
-        window.location.href = '/login';
+        if (!isRedirectingToLogin) {
+          isRedirectingToLogin = true;
+          // Session expired or invalid — clear auth state and redirect to login
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user_role');
+          localStorage.removeItem('user_id');
+          localStorage.removeItem('user_name');
+          window.location.href = '/login';
+        }
       }
       const errorMessage = data?.error || data?.message || `HTTP ${response.status}`;
       logger.error(`API Error: ${errorMessage}`, { url, status: response.status, data });

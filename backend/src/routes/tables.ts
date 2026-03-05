@@ -177,12 +177,24 @@ router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitche
         
         if (orderResult.rows.length > 0) {
           const order = orderResult.rows[0];
-          
+
           // Emit socket events if SocketManager is initialized
           if (SocketManager.isInitialized()) {
             const io = SocketManager.getIO();
-            io.emit('orderUpdated', order);
-            io.emit('orderPaid', order);
+            // Convert raw PostgreSQL row (snake_case) to camelCase for frontend
+            const formattedOrder = {
+              id: order.id,
+              orderNumber: order.order_number,
+              sessionId: order.session_id,
+              tableNumber: order.table_number,
+              status: order.status,
+              totalPrice: parseFloat(order.total_price),
+              createdAt: order.created_at,
+              updatedAt: order.updated_at,
+              items: order.items || []
+            };
+            io.emit('orderUpdated', formattedOrder);
+            io.emit('orderPaid', formattedOrder);
           }
         }
       }

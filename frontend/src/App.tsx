@@ -3,7 +3,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Customer from './pages/Customer';
 import Kitchen from './pages/Kitchen';
 import Waiter from './pages/Waiter';
-import WaiterOrder from './pages/WaiterOrder';
 import QRCodes from './pages/QRCodes';
 import Login from './pages/Login';
 import CustomerLogin from './pages/CustomerLogin';
@@ -11,12 +10,23 @@ import Register from './pages/Register';
 import TableAssignments from './pages/TableAssignments';
 import './styles/App.css';
 
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
+}
+
 // Protected route wrapper for Kitchen and Waiter pages
 function ProtectedRoute({ children, requiredRole }: { children: JSX.Element; requiredRole: string | string[] }) {
   const token = localStorage.getItem('auth_token');
   const userRole = localStorage.getItem('user_role');
 
-  if (!token) {
+  if (!token || isTokenExpired(token)) {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_role');
     return <Navigate to="/login" replace />;
   }
 
@@ -38,14 +48,6 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/table/:tableId" element={<Customer />} />
-            <Route 
-              path="/waiter/order" 
-              element={
-                <ProtectedRoute requiredRole="waiter">
-                  <WaiterOrder />
-                </ProtectedRoute>
-              } 
-            />
             <Route path="/login" element={<Login />} />
             <Route path="/customer-login" element={<CustomerLogin />} />
             <Route path="/customer-register" element={<Register />} />

@@ -504,17 +504,8 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
       items: order.items || []
     };
     
-    // Emit socket event to notify all clients about the order update
-    if (SocketManager.isInitialized()) {
-      const io = SocketManager.getIO();
-      io.emit('orderUpdated', formattedOrder);
-      
-      // Emit specific event for 'Ready' status
-      if (status === 'Ready') {
-        io.emit('orderReady', formattedOrder);
-      }
-    }
-    
+    // Socket events for PATCH /orders/:id/status are emitted by the
+    // server.ts res.json middleware — no need to emit here too.
     res.json(formattedOrder);
   } catch (error) {
     logger.error('ORDER STATUS - Error updating order status', { error, orderId: req.params.id });

@@ -40,6 +40,82 @@
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
+/* ── Inline order panel ── */
+.inline-order-panel {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.inline-order-body {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 0;
+  min-height: 500px;
+}
+
+.inline-cart-section {
+  padding: 1.5rem;
+  border-right: 1px solid #eee;
+  background: #fafafa;
+}
+
+.inline-cart-section h2 {
+  color: #333;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+.table-selector-inline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: #e8f4fd;
+  border-radius: 8px;
+  border-left: 3px solid #2196F3;
+}
+
+.table-selector-inline label {
+  font-weight: 600;
+  color: #333;
+  white-space: nowrap;
+}
+
+.table-selector-inline select {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: white;
+}
+
+.inline-menu-section {
+  padding: 1.5rem;
+  overflow-y: auto;
+  max-height: 700px;
+}
+
+.inline-menu-section h2 {
+  color: #333;
+  font-size: 1.25rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 900px) {
+  .inline-order-body {
+    grid-template-columns: 1fr;
+  }
+  .inline-cart-section {
+    border-right: none;
+    border-bottom: 1px solid #eee;
+  }
+}
+
 .waiter-calls-container {
   display: flex;
   flex-direction: column;
