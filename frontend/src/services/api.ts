@@ -97,8 +97,8 @@ async function request<T>(
 ): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   
-  // Add authentication token if available
-  const token = localStorage.getItem('auth_token');
+  // Add authentication token if available (staff token is in sessionStorage)
+  const token = sessionStorage.getItem('auth_token');
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -135,10 +135,10 @@ async function request<T>(
         if (!isRedirectingToLogin) {
           isRedirectingToLogin = true;
           // Session expired or invalid — clear auth state and redirect to login
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user_role');
-          localStorage.removeItem('user_id');
-          localStorage.removeItem('user_name');
+          sessionStorage.removeItem('auth_token');
+          sessionStorage.removeItem('user_role');
+          sessionStorage.removeItem('user_id');
+          sessionStorage.removeItem('user_name');
           window.location.href = '/login';
         }
       }

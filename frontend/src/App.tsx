@@ -20,12 +20,12 @@ function decodeToken(token: string): { exp: number; role: string } | null {
 
 // Protected route wrapper for Kitchen and Waiter pages
 function ProtectedRoute({ children, requiredRole }: { children: JSX.Element; requiredRole: string | string[] }) {
-  const token = localStorage.getItem('auth_token');
+  const token = sessionStorage.getItem('auth_token');
   const payload = token ? decodeToken(token) : null;
 
   if (!token || !payload || payload.exp * 1000 < Date.now()) {
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user_role');
+    sessionStorage.removeItem('auth_token');
+    sessionStorage.removeItem('user_role');
     return <Navigate to="/login" replace />;
   }
 

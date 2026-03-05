@@ -20,11 +20,12 @@ export default function Login() {
         password,
       });
 
-      // Store token in localStorage
-      localStorage.setItem('auth_token', response.token);
-      localStorage.setItem('user_role', response.user.role);
-      localStorage.setItem('user_id', response.user.id.toString());
-      localStorage.setItem('user_name', response.user.full_name || response.user.username);
+      // Store staff token in sessionStorage (tab-isolated) to prevent
+      // cross-tab interference when testing multiple roles simultaneously
+      sessionStorage.setItem('auth_token', response.token);
+      sessionStorage.setItem('user_role', response.user.role);
+      sessionStorage.setItem('user_id', response.user.id.toString());
+      sessionStorage.setItem('user_name', response.user.full_name || response.user.username);
 
       // Redirect based on role
       if (response.user.role === 'kitchen') {
