@@ -23,7 +23,6 @@ const Customer: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('');
   const [isPaid, setIsPaid] = useState<boolean>(false);
-  const [countdown, setCountdown] = useState<number>(8);
   const sessionIdRef = useRef<string | null>(null);
 
   const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
@@ -117,20 +116,6 @@ const Customer: React.FC = () => {
     };
   }, []);
 
-  useEffect(() => {
-    if (!isPaid) return;
-    const timer = setInterval(() => {
-      setCountdown(prev => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          navigate('/');
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [isPaid]);
 
   useEffect(() => {
     // Fetch all orders for this session
@@ -302,7 +287,6 @@ const Customer: React.FC = () => {
         <div style={{ fontSize: '64px' }}>✅</div>
         <h1 style={{ margin: 0 }}>Mulțumim!</h1>
         <p style={{ margin: 0, fontSize: '18px' }}>Comanda a fost plătită. Vă așteptăm cu drag!</p>
-        <p style={{ margin: 0, color: '#888' }}>Această pagină se va reîncărca în {countdown} secunde...</p>
       </div>
     );
   }
