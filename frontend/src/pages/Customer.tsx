@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MenuItem, OrderWithItems } from '../types';
 import { api } from '../services/api';
@@ -17,12 +17,14 @@ const Customer: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [tableNumber, setTableNumber] = useState<number>(tableId ? parseInt(tableId) : 1);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [currentOrder, setCurrentOrder] = useState<OrderWithItems | null>(null);
   const [sessionOrders, setSessionOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(false);
   const [isQrMode, setIsQrMode] = useState<boolean>(!!tableId);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('');
+  const [isPaid, setIsPaid] = useState<boolean>(false);
+  const [countdown, setCountdown] = useState<number>(8);
+  const sessionIdRef = useRef<string | null>(null);
 
   const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
 
@@ -66,8 +68,13 @@ const Customer: React.FC = () => {
     }
   }, [tableId]);
 
+  // Keep ref in sync with sessionId so socket callbacks avoid stale closures
   useEffect(() => {
-    // Connect socket once
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
+
+  useEffect(() => {
+    // Connect socket once on mount
     socketService.connect();
 
     socketService.onOrderUpdated((order) => {
@@ -80,21 +87,50 @@ const Customer: React.FC = () => {
           price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
         }))
       };
-      
-      // Update current order if it matches
-      setCurrentOrder(prev => prev && prev.id === orderWithNumbers.id ? orderWithNumbers : prev);
-      
+
       // Update order in sessionOrders array
-      setSessionOrders(prev => 
+      setSessionOrders(prev =>
         prev.map(o => o.id === orderWithNumbers.id ? orderWithNumbers : o)
       );
     });
 
+    socketService.onOrderPaid((order) => {
+      // Only react if this payment belongs to our session
+      const currentSessionId = sessionIdRef.current;
+      if (!currentSessionId || order.sessionId !== currentSessionId) return;
+      sessionService.clearStoredSession();
+      setIsPaid(true);
+    });
+
+    socketService.onSessionEnded((data) => {
+      const currentSessionId = sessionIdRef.current;
+      if (!currentSessionId || data.sessionId !== currentSessionId) return;
+      sessionService.clearStoredSession();
+      setIsPaid(true);
+    });
+
     return () => {
       socketService.off('orderUpdated');
+      socketService.off('orderPaid');
+      socketService.off('sessionEnded');
       socketService.disconnect();
     };
-  }, [currentOrder]);
+  }, []);
+
+  useEffect(() => {
+    if (!isPaid) return;
+    const timer = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          navigate('/');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isPaid]);
 
   useEffect(() => {
     // Fetch all orders for this session
@@ -170,7 +206,6 @@ const Customer: React.FC = () => {
       setSessionId(session.sessionId);
       setTableNumber(newTableNumber);
       clearCart();
-      setCurrentOrder(null);
       setSessionOrders([]);
     } catch (error) {
       alert('Failed to switch table');
@@ -259,6 +294,18 @@ const Customer: React.FC = () => {
       alert('Failed to call waiter. Please try again.');
     }
   };
+
+  if (isPaid) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    justifyContent: 'center', height: '100vh', textAlign: 'center', gap: '16px' }}>
+        <div style={{ fontSize: '64px' }}>✅</div>
+        <h1 style={{ margin: 0 }}>Mulțumim!</h1>
+        <p style={{ margin: 0, fontSize: '18px' }}>Comanda a fost plătită. Vă așteptăm cu drag!</p>
+        <p style={{ margin: 0, color: '#888' }}>Această pagină se va reîncărca în {countdown} secunde...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="customer-container">

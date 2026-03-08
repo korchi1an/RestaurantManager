@@ -145,18 +145,18 @@ router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitche
       UPDATE orders
       SET status = 'Paid', paid_at = NOW(), updated_at = NOW()
       WHERE table_number = $1 AND status = 'Served'
-      RETURNING id
+      RETURNING id, session_id
     `, [tableNumber]);
 
     // Fetch full order details with items and emit socket events
     if (result.rows.length > 0) {
-      const orderIds = result.rows.map(row => row.id);
+      const orderIds = result.rows.map((row: any) => row.id);
       logger.info('TABLES - Orders marked as paid', { tableNumber, orderIds });
-      
+
       // Fetch full order details for socket events
       for (const { id } of result.rows) {
         const orderResult = await pool.query(`
-          SELECT o.*, 
+          SELECT o.*,
             json_agg(
               json_build_object(
                 'id', oi.id,
@@ -174,7 +174,7 @@ router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitche
           WHERE o.id = $1
           GROUP BY o.id
         `, [id]);
-        
+
         if (orderResult.rows.length > 0) {
           const order = orderResult.rows[0];
 
@@ -195,6 +195,23 @@ router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitche
             };
             io.emit('orderUpdated', formattedOrder);
             io.emit('orderPaid', formattedOrder);
+          }
+        }
+      }
+
+      // Immediately deactivate the session — don't wait for the 10-minute cleanup loop
+      const sessionIds = [...new Set(result.rows.map((r: any) => r.session_id).filter(Boolean))];
+      if (sessionIds.length > 0) {
+        await pool.query(
+          `UPDATE sessions SET is_active = FALSE WHERE id = ANY($1::uuid[])`,
+          [sessionIds]
+        );
+        logger.info('TABLES - Sessions deactivated on payment', { tableNumber, sessionIds });
+
+        if (SocketManager.isInitialized()) {
+          const io = SocketManager.getIO();
+          for (const sid of sessionIds) {
+            io.emit('sessionEnded', { sessionId: sid, tableNumber: parseInt(tableNumber) });
           }
         }
       }

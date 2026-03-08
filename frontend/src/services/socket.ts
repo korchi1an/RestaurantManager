@@ -82,6 +82,12 @@ class SocketService {
     }
   }
 
+  onSessionEnded(callback: (data: { sessionId: string; tableNumber: number }) => void) {
+    if (this.socket) {
+      this.socket.on('sessionEnded', callback);
+    }
+  }
+
   onOrderCancelled(callback: (data: { orderId: number }) => void) {
     if (this.socket) {
       this.socket.on('orderCancelled', callback);
