@@ -1,123 +1,199 @@
-# 🚀 Quick Start Guide
+# Quick Start Guide
+
+## Prerequisites
+
+- Node.js v18+
+- PostgreSQL database (local or remote)
+
+---
 
 ## Step 1: Install Dependencies
 
-Open two terminal windows in VS Code:
+Open two terminal windows:
 
-### Terminal 1 - Backend
+**Terminal 1 — Backend:**
 ```bash
 cd backend
 npm install
 ```
 
-### Terminal 2 - Frontend
+**Terminal 2 — Frontend:**
 ```bash
 cd frontend
 npm install
 ```
 
-## Step 2: Start the Application
+---
 
-### Terminal 1 - Start Backend
+## Step 2: Configure Environment
+
+Create `backend/.env`:
+
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/restaurant
+JWT_SECRET=your-secret-key-at-least-32-chars
+NODE_ENV=development
+PORT=5000
+CORS_ORIGIN=http://localhost:3000
+FRONTEND_URL=http://localhost:3000
+```
+
+---
+
+## Step 3: Start the Application
+
+**Terminal 1 — Backend:**
 ```bash
 cd backend
 npm run dev
 ```
-✓ Backend server will start on http://localhost:5000
-✓ Database will be automatically created with seed data
+Expected: `=== SERVER READY ===` on port 5000 with database connected.
 
-### Terminal 2 - Start Frontend
+**Terminal 2 — Frontend:**
 ```bash
 cd frontend
 npm run dev
 ```
-✓ Frontend will start on http://localhost:3000
-✓ Browser should automatically open
+Expected: Vite dev server on `http://localhost:3000`
 
-## Step 3: Test the Application
+---
 
-1. **Open http://localhost:3000** in your browser
-2. Switch between the three views using the top navigation:
-   - 👥 **Customer** - Place an order
-   - 👨‍🍳 **Kitchen** - Manage order preparation
-   - 🍽️ **Waiter** - Serve completed orders
+## Step 4: Access the Application
+
+Open `http://localhost:3000` in your browser.
+
+### Available Routes
+
+| URL | Description | Auth |
+|-----|-------------|------|
+| `/table/1` | Customer ordering (Table 1) | None |
+| `/login` | Staff login (kitchen/waiter/admin) | — |
+| `/customer-login` | Customer account login | — |
+| `/register` | Customer account registration | — |
+| `/kitchen` | Kitchen dashboard | Staff login required |
+| `/waiter` | Waiter dashboard | Staff login required |
+| `/assignments` | Table assignment management | kitchen/admin |
+| `/qr-codes` | QR code display for all tables | None |
+
+---
+
+## Default Staff Credentials
+
+| Username | Password | Role | Dashboard |
+|----------|----------|------|-----------|
+| `chef` | `kitchen123` | kitchen | `/kitchen` |
+| `ana` | `waiter123` | waiter | `/waiter` |
+| `mihai` | `waiter123` | waiter | `/waiter` |
+| `admin` | `admin123` | admin | All |
+
+> Change all passwords before production deployment.
+
+---
 
 ## Testing Workflow
 
-1. **As Customer:**
-   - Select a table number (1-10)
-   - Browse menu items by category
-   - Add items to cart
-   - Adjust quantities
-   - Submit the order
+### Full Order Cycle
 
-2. **As Kitchen Staff:**
-   - See the new order appear in real-time
-   - Click "Start Preparing" to update status
-   - Click "Mark as Ready" when order is complete
+**1. As Customer** — Open `http://localhost:3000/table/1`
+- Browse the menu by category
+- Add items to cart
+- Click "Submit Order"
+- Note the order number displayed
 
-3. **As Waiter:**
-   - Receive notification when order is ready
-   - View the ready order
-   - Click "Mark as Served" to complete the order
+**2. As Kitchen Staff** — Log in at `/login` (chef / kitchen123), navigate to `/kitchen`
+- See the new order appear in real-time
+- Click "Mark Preparing" then "Mark Ready"
+
+**3. As Waiter** — Log in at `/login` (ana / waiter123), navigate to `/waiter`
+- See the "Ready" notification
+- Click "Mark as Served" (table-level action)
+- Process payment via "Mark Paid" to close the session
+
+**4. Back to Customer tab**
+- Observe order status updating in real-time
+- After payment, see the session-ended goodbye screen
+
+### Multi-Tab Testing
+
+Because staff tokens are stored in `sessionStorage`, you can test multiple roles simultaneously:
+- Tab 1: Kitchen (`/kitchen`)
+- Tab 2: Waiter (`/waiter`)
+- Tab 3: Customer (`/table/2`)
+
+Each tab maintains its own isolated authentication state.
+
+---
 
 ## Troubleshooting
 
-**Port already in use:**
-- Backend: Change port in `backend/src/server.ts` (line with `PORT`)
-- Frontend: Change port in `frontend/vite.config.ts`
+**Port 5000 already in use:**
+```bash
+# Set a different port
+PORT=5001 npm run dev
+# Also update VITE_API_URL in frontend/.env or vite.config.ts proxy target
+```
 
-**Database issues:**
-- Delete `backend/restaurant.db` file and restart backend
+**Database connection error:**
+1. Verify PostgreSQL is running
+2. Check `DATABASE_URL` format: `postgresql://user:pass@host:port/db`
+3. Create the database if it doesn't exist:
+   ```sql
+   CREATE DATABASE restaurant;
+   ```
+
+**Missing JWT_SECRET error:**
+The server validates `JWT_SECRET` at startup. Add it to `backend/.env`.
 
 **Real-time updates not working:**
-- Check browser console for Socket.IO connection errors
-- Ensure both backend and frontend are running
+1. Confirm backend is running (check Terminal 1)
+2. Open browser devtools → Network → WS tab to see Socket.IO connection
+3. Check `CORS_ORIGIN` matches the frontend URL exactly
+
+**Database tables not created:**
+The schema and seed data initialize automatically on first run. If the DB exists but is empty, delete it and restart:
+```bash
+# PostgreSQL
+dropdb restaurant && createdb restaurant
+cd backend && npm run dev
+```
+
+---
 
 ## Architecture Overview
 
 ```
 ┌─────────────────┐
-│   Frontend      │
-│   (React)       │
-│   Port 3000     │
+│   Frontend      │   React 18 + TypeScript
+│   Port 3000     │   Vite dev server
+└────────┬────────┘
+         │  HTTP REST API  +  WebSocket (Socket.IO)
+┌────────▼────────┐
+│   Backend       │   Express + TypeScript
+│   Port 5000     │   JWT Auth + Rate Limiting
 └────────┬────────┘
          │
-         │ HTTP REST API
-         │ WebSocket (Socket.IO)
-         │
 ┌────────▼────────┐
-│   Backend       │
-│   (Express)     │
-│   Port 5000     │
-└────────┬────────┘
-         │
-         │
-┌────────▼────────┐
-│   SQLite DB     │
-│  (restaurant.db)│
+│   PostgreSQL    │   7 tables, auto-seeded
+│   DATABASE_URL  │   Connection pool (pg)
 └─────────────────┘
 ```
 
-## Key Files
+---
 
-**Backend:**
-- `backend/src/server.ts` - Main server file
-- `backend/src/routes/` - API endpoints
-- `backend/src/db/database.ts` - Database setup
+## Key Files for Customization
 
-**Frontend:**
-- `frontend/src/App.tsx` - Main app component
-- `frontend/src/pages/` - Customer, Kitchen, Waiter views
-- `frontend/src/services/` - API and Socket.IO clients
-
-## Next Steps
-
-- Read the full [README.md](README.md) for detailed documentation
-- Explore the codebase to understand the architecture
-- Customize menu items in `backend/src/db/database.ts`
-- Modify styling in `frontend/src/styles/`
+| File | What to Change |
+|------|---------------|
+| `backend/src/db/database.ts` | Menu items, table count, seed employees |
+| `frontend/src/styles/App.css` | Global navigation and brand colors |
+| `backend/src/routes/auth.ts` | Auth policies, registration rules |
+| `backend/src/middleware/rateLimiter.ts` | Rate limit thresholds |
 
 ---
 
-**Need help?** Check the [README.md](README.md) for more detailed information!
+## Next Steps
+
+- Read the full [README.md](../../README.md)
+- See [Architecture Details](../architecture/ARCHITECTURE.md)
+- Review [Session Management](SESSION_MANAGEMENT.md)
+- Follow the [Deployment Guide](../deployment/QUICKSTART.md) to publish to Render

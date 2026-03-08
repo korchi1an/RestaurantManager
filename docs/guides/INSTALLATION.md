@@ -1,190 +1,236 @@
-# 🚀 Installation & Running Instructions
+# Installation & Development Setup
 
-## Prerequisites Check
+## Prerequisites
 
 Before starting, ensure you have:
-- ✅ Node.js (v18 or higher) - [Download](https://nodejs.org/)
-- ✅ npm (comes with Node.js)
-- ✅ A code editor (VS Code recommended)
 
-Verify installation:
+- **Node.js v18+** — [Download](https://nodejs.org/)
+- **npm** — Comes with Node.js
+- **PostgreSQL** — [Download](https://www.postgresql.org/download/) or use a hosted instance
+- **VS Code** — Recommended editor
+
+Verify:
 ```bash
-node --version    # Should show v18.x.x or higher
-npm --version     # Should show 9.x.x or higher
+node --version     # Should show v18.x.x or higher
+npm --version      # Should show 9.x.x or higher
+psql --version     # Should show 14.x or higher
 ```
 
 ---
 
-## 🔧 Installation Steps
+## Installation Steps
 
-### Step 1: Open Two Terminals
+### Step 1: Clone or Open the Project
 
-In VS Code:
-1. Press `` Ctrl + ` `` to open terminal
-2. Click the "+" icon to open a second terminal
-3. Or use "Split Terminal" icon
+If starting fresh:
+```bash
+git clone <repo-url> restaurant2
+cd restaurant2
+```
 
-### Step 2: Install Backend Dependencies
+### Step 2: Create the Database
 
-**Terminal 1:**
+Using psql or your preferred PostgreSQL client:
+```sql
+CREATE DATABASE restaurant;
+```
+
+### Step 3: Configure Backend Environment
+
+Create `backend/.env` from the example:
+
+```env
+DATABASE_URL=postgresql://postgres:yourpassword@localhost:5432/restaurant
+JWT_SECRET=replace-with-a-secure-random-string-at-least-32-chars
+NODE_ENV=development
+PORT=5000
+CORS_ORIGIN=http://localhost:3000
+FRONTEND_URL=http://localhost:3000
+```
+
+> **JWT_SECRET**: Generate a secure value with:
+> ```bash
+> node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+> ```
+
+### Step 4: Install Backend Dependencies
+
 ```bash
 cd backend
 npm install
 ```
 
-Wait for installation to complete. You should see:
-```
-added XXX packages in Xs
-```
+### Step 5: Install Frontend Dependencies
 
-### Step 3: Install Frontend Dependencies
-
-**Terminal 2:**
 ```bash
 cd frontend
 npm install
 ```
 
-Wait for installation to complete. You should see:
-```
-added XXX packages in Xs
-```
-
 ---
 
-## ▶️ Running the Application
+## Running the Application
 
-### Start Backend Server
+### Start Backend (Terminal 1)
 
-**Terminal 1:**
 ```bash
 cd backend
 npm run dev
 ```
 
-✅ **Expected Output:**
+Expected output:
 ```
-✓ Database initialized
-✓ Seeded menu items
-✓ Seeded tables
-✓ Server running on http://localhost:5000
-✓ Socket.IO server ready
+[INFO] Validating environment variables...
+[INFO] Connecting to database...
+[INFO] Database initialized
+[INFO] Seeded menu items
+[INFO] Seeded tables
+[INFO] Seeded staff accounts
+=== SERVER READY ===
+[INFO] Server running on http://localhost:5000
+[INFO] Socket.IO server ready
 ```
 
-⚠️ **Keep this terminal running!**
+> The database schema and seed data are created automatically on first run.
 
-### Start Frontend Server
+### Start Frontend (Terminal 2)
 
-**Terminal 2:**
 ```bash
 cd frontend
 npm run dev
 ```
 
-✅ **Expected Output:**
+Expected output:
 ```
   VITE v5.x.x  ready in XXX ms
 
   ➜  Local:   http://localhost:3000/
   ➜  Network: use --host to expose
-  ➜  press h to show help
 ```
-
-⚠️ **Keep this terminal running!**
 
 ### Access the Application
 
-🌐 **Open in browser:** http://localhost:3000
-
-The application should load with three navigation options:
-- 👥 Customer
-- 👨‍🍳 Kitchen
-- 🍽️ Waiter
+Open `http://localhost:3000` in your browser.
 
 ---
 
-## 🧪 Testing the Application
+## Application Routes
+
+### Public Routes
+
+| URL | Description |
+|-----|-------------|
+| `/table/:tableId` | Customer ordering page (e.g., `/table/1`) |
+| `/login` | Staff login (username + password) |
+| `/customer-login` | Customer account login (email + password) |
+| `/register` | Customer account registration |
+| `/qr-codes` | QR code display for all tables |
+
+### Protected Staff Routes
+
+| URL | Required Role | Description |
+|-----|--------------|-------------|
+| `/kitchen` | kitchen / admin | Kitchen order dashboard |
+| `/waiter` | waiter / admin | Waiter order dashboard |
+| `/assignments` | kitchen / admin | Table-to-waiter assignments |
+
+---
+
+## Default Credentials (Development Only)
+
+| Username | Password | Role |
+|----------|----------|------|
+| `chef` | `kitchen123` | kitchen |
+| `ana` | `waiter123` | waiter |
+| `mihai` | `waiter123` | waiter |
+| `admin` | `admin123` | admin |
+
+> Change all passwords before any public deployment.
+
+---
+
+## Testing the Application
 
 ### Quick Test Flow
 
-1. **Switch to Customer View** (👥 Customer button)
-   - Select a table number (e.g., Table 3)
-   - Click on some menu items to add to cart
-   - Adjust quantities using +/- buttons
+1. **Customer** — Open `http://localhost:3000/table/3`
+   - Browse the menu, add items to cart
    - Click "Submit Order"
-   - ✅ You should see "Order submitted successfully!"
 
-2. **Switch to Kitchen View** (👨‍🍳 Kitchen button)
-   - ✅ You should see your order appear in real-time
-   - Click "Start Preparing" or "Mark as Ready"
-   - ✅ Order status updates
+2. **Kitchen** — Log in at `/login` as `chef` / `kitchen123`
+   - Go to `/kitchen`
+   - See the new order in real-time
+   - Click "Mark Preparing" then "Mark Ready"
 
-3. **Switch to Waiter View** (🍽️ Waiter button)
-   - ✅ If order is "Ready", you'll see it here with notification
-   - Click "Mark as Served"
-   - ✅ Order moves to "Recently Served" section
+3. **Waiter** — Log in at `/login` as `ana` / `waiter123`
+   - Go to `/waiter`
+   - See the ready notification
+   - Click "Mark Served" then "Mark Paid"
 
-4. **Back to Customer View**
-   - ✅ Your order status should show "Served"
+4. **Customer tab** — Watch the order status update live and see the goodbye screen after payment
 
 ---
 
-## 🐛 Troubleshooting
+## Troubleshooting
+
+### Problem: Server fails to start with "Missing required environment variable"
+
+The startup validator (`validateEnv.ts`) requires `DATABASE_URL` and `JWT_SECRET`.
+
+**Solution:** Verify `backend/.env` exists and contains both variables.
+
+### Problem: `DATABASE_URL` connection refused
+
+**Solution:**
+1. Ensure PostgreSQL service is running
+2. Verify the connection string format: `postgresql://user:pass@host:port/dbname`
+3. Confirm the database exists: `psql -l | grep restaurant`
 
 ### Problem: Port 5000 already in use
 
-**Solution:**
-Edit `backend/src/server.ts`, line ~70:
-```typescript
-const PORT = process.env.PORT || 5001; // Changed from 5000
-```
-
-Also update `frontend/vite.config.ts`:
+**Solution:** Add `PORT=5001` to `backend/.env` and update the frontend proxy target in `frontend/vite.config.ts`:
 ```typescript
 proxy: {
-  '/api': {
-    target: 'http://localhost:5001', // Changed from 5000
+  '/api': { target: 'http://localhost:5001' },
+  '/socket.io': { target: 'http://localhost:5001' }
+}
 ```
 
 ### Problem: Port 3000 already in use
 
-**Solution:**
-Edit `frontend/vite.config.ts`:
+**Solution:** Edit `frontend/vite.config.ts`:
 ```typescript
 server: {
-  port: 3001, // Changed from 3000
-```
-
-### Problem: Cannot find module 'express'
-
-**Solution:**
-Make sure you're in the correct directory and dependencies are installed:
-```bash
-cd backend
-npm install
+  port: 3001,
+}
 ```
 
 ### Problem: Socket.IO not connecting
 
-**Solution:**
-1. Check backend server is running (Terminal 1)
-2. Check browser console for errors (F12)
-3. Verify URL in `frontend/src/services/socket.ts` matches backend URL
+1. Confirm backend is running (Terminal 1)
+2. Open browser DevTools → Network → WS filter — look for a Socket.IO connection
+3. Check that `CORS_ORIGIN` in `.env` matches the exact frontend URL (including port)
 
-### Problem: Database errors
+### Problem: Orders created but kitchen doesn't update in real-time
 
-**Solution:**
-Delete the database and restart:
+1. Check the WS connection in browser DevTools
+2. Reload both tabs to re-establish Socket.IO listeners
+3. Verify Socket.IO handshake succeeds in backend logs
+
+### Problem: Staff login returns 403 Forbidden
+
+Staff tokens are stored in `sessionStorage` (tab-specific). If you navigated away or opened a new tab, you need to log in again in that tab.
+
+### Problem: Database tables missing after restart
+
+The schema initializes only once (on first run). If the `restaurant` DB was dropped and recreated:
 ```bash
 cd backend
-rm restaurant.db  # or del restaurant.db on Windows
-npm run dev       # Recreates database with seed data
+npm run dev   # Re-runs schema init and seed data
 ```
 
 ### Problem: Module not found errors
 
-**Solution:**
-Clear node_modules and reinstall:
 ```bash
 # Backend
 cd backend
@@ -199,118 +245,87 @@ npm install
 
 ---
 
-## 🔄 Stopping the Application
+## Stopping the Application
 
-1. In **Terminal 1** (Backend): Press `Ctrl + C`
-2. In **Terminal 2** (Frontend): Press `Ctrl + C`
+- Terminal 1 (Backend): `Ctrl + C`
+- Terminal 2 (Frontend): `Ctrl + C`
 
 ---
 
-## 📦 Building for Production
+## Building for Production
 
 ### Build Backend
 ```bash
 cd backend
-npm run build
+npm run build    # Output: backend/dist/
+npm start        # Runs compiled JS
 ```
-Output will be in `backend/dist/`
 
 ### Build Frontend
 ```bash
 cd frontend
-npm run build
-```
-Output will be in `frontend/dist/`
-
-### Run Production Build
-
-**Backend:**
-```bash
-cd backend
-npm start
+npm run build    # Output: frontend/dist/
+npm run preview  # Preview production build locally
 ```
 
-**Frontend:**
-Serve the `dist` folder with a static file server:
+### Run Full Production Stack Locally
 ```bash
-cd frontend
-npm install -g serve
-serve -s dist -p 3000
+# Terminal 1 — Backend
+cd backend && npm run build && NODE_ENV=production npm start
+
+# Terminal 2 — Serve frontend dist
+cd frontend && npm run build
+npx serve -s dist -p 3000
 ```
 
 ---
 
-## 🗂️ Project Structure at a Glance
+## Project Structure at a Glance
 
 ```
 restaurant2/
-├── backend/          # Node.js server
-│   ├── src/          # Source code
-│   └── package.json  # Dependencies
+├── backend/
+│   ├── .env              ← Create this file (not committed)
+│   ├── src/
+│   │   ├── server.ts
+│   │   ├── config/       ← env validation
+│   │   ├── db/           ← PostgreSQL + seed data
+│   │   ├── middleware/   ← auth, rate limiting, error handler
+│   │   ├── routes/       ← auth, menu, orders, sessions, tables, assignments
+│   │   └── utils/        ← logger, socketManager
+│   └── package.json
 │
-├── frontend/         # React app
-│   ├── src/          # Source code
-│   └── package.json  # Dependencies
-│
-└── *.md              # Documentation
+└── frontend/
+    ├── src/
+    │   ├── App.tsx        ← Router + ProtectedRoute
+    │   ├── components/    ← MenuDisplay, CartDisplay
+    │   ├── hooks/         ← useCart
+    │   ├── pages/         ← Customer, Kitchen, Waiter, Login, Register, etc.
+    │   ├── services/      ← api, socket, sessionService
+    │   └── types/
+    └── package.json
 ```
 
 ---
 
-## 📚 Next Steps
+## Success Checklist
 
-1. ✅ Read [README.md](README.md) for full documentation
-2. ✅ Check [ARCHITECTURE.md](ARCHITECTURE.md) for technical details
-3. ✅ See [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for feature overview
-4. ✅ Start customizing the code!
-
----
-
-## 🎯 Quick Command Reference
-
-### Development
-```bash
-# Backend
-cd backend && npm run dev
-
-# Frontend
-cd frontend && npm run dev
-```
-
-### Production Build
-```bash
-# Backend
-cd backend && npm run build && npm start
-
-# Frontend
-cd frontend && npm run build
-```
-
-### Fresh Install
-```bash
-# Backend
-cd backend && rm -rf node_modules && npm install
-
-# Frontend
-cd frontend && rm -rf node_modules && npm install
-```
-
----
-
-## ✅ Success Checklist
-
-- [ ] Node.js and npm installed
+- [ ] Node.js v18+ installed
+- [ ] PostgreSQL running and `restaurant` database created
+- [ ] `backend/.env` configured with `DATABASE_URL` and `JWT_SECRET`
 - [ ] Backend dependencies installed (`backend/node_modules/` exists)
 - [ ] Frontend dependencies installed (`frontend/node_modules/` exists)
-- [ ] Backend server running (http://localhost:5000)
-- [ ] Frontend server running (http://localhost:3000)
-- [ ] Application loads in browser
-- [ ] Can switch between Customer/Kitchen/Waiter views
-- [ ] Can place an order
-- [ ] Real-time updates work across views
+- [ ] Backend starts without errors (`=== SERVER READY ===` in Terminal 1)
+- [ ] Frontend Vite dev server running (`http://localhost:3000`)
+- [ ] Can access `/table/1` as a customer
+- [ ] Can log in as staff at `/login`
+- [ ] Real-time order updates visible across browser tabs
 
 ---
 
-**Need Help?** Check the troubleshooting section above or review the documentation files!
+## Next Steps
 
-🎉 **Happy Coding!**
+1. Read the full [README.md](../../README.md)
+2. Review [Architecture Details](../architecture/ARCHITECTURE.md)
+3. Check [Session Management](SESSION_MANAGEMENT.md)
+4. Deploy using the [Render.com Guide](../deployment/QUICKSTART.md)
