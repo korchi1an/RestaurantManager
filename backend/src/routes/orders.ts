@@ -365,14 +365,14 @@ router.patch('/table/:tableNumber/status', authenticate, authorize('kitchen', 'w
   try {
     const tableNumber = parseInt(req.params.tableNumber);
     const { status } = req.body;
-    const validStatuses = ['Preparing', 'Ready'];
+    const validStatuses = ['Preparing', 'Ready', 'Served'];
 
     if (!status || !validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status. Must be Preparing or Ready.' });
+      return res.status(400).json({ error: 'Invalid status. Must be Preparing, Ready, or Served.' });
     }
 
     // Determine which current statuses to update from
-    const fromStatuses = status === 'Preparing' ? ['Pending'] : ['Pending', 'Preparing'];
+    const fromStatuses = status === 'Preparing' ? ['Pending'] : status === 'Ready' ? ['Pending', 'Preparing'] : ['Ready'];
     const placeholders = fromStatuses.map((_, i) => `$${i + 2}`).join(', ');
 
     const updateResult = await pool.query(
@@ -431,6 +431,9 @@ router.patch('/table/:tableNumber/status', authenticate, authorize('kitchen', 'w
         io.emit('orderUpdated', formattedOrder);
         if (status === 'Ready') {
           io.emit('orderReady', formattedOrder);
+        }
+        if (status === 'Served') {
+          io.emit('orderServed', formattedOrder);
         }
       }
     }

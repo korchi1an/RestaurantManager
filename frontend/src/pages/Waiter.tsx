@@ -278,22 +278,13 @@ const Waiter: React.FC = () => {
     oscillator.stop(audioContext.currentTime + 0.3);
   };
 
-  const markAsServed = async (orderId: number) => {
+  const markTableAsServed = async (tableNumber: number) => {
     setLoading(true);
     try {
-      console.log('[Waiter] Marking order as served:', orderId);
-
-      await api.updateOrderStatus(orderId, 'Served');
-
-      // Don't update state here - let the socket handler do it to avoid double counting
-      // The socket event will fire and update unpaid totals automatically
-
-      // Remove from ready orders
-      await loadOrders();
-      console.log('[Waiter] Order marked as served successfully');
+      await api.updateTableOrdersStatus(tableNumber, 'Served');
     } catch (error) {
-      console.error('Error updating order:', error);
-      alert('Nu s-a putut actualiza starea comenzii');
+      console.error('Error marking table as served:', error);
+      alert('Nu s-a putut marca masa ca servită');
     } finally {
       setLoading(false);
     }
@@ -329,10 +320,6 @@ const Waiter: React.FC = () => {
     }
   };
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString();
-  };
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -484,56 +471,80 @@ const Waiter: React.FC = () => {
             </div>
           )}
 
-          <div className="waiter-stats">
-            <div className="stat-card ready">
-              <h3>Gata de Servit</h3>
-              <p className="stat-number">{readyOrders.length}</p>
-            </div>
-          </div>
-
-          <section className="orders-section">
-            <h2 className="section-title">Comenzi Gata</h2>
-            {readyOrders.length === 0 ? (
-              <div className="empty-state">
-                <p>Nu există comenzi gata de servit</p>
-              </div>
-            ) : (
-              <div className="orders-grid">
-                {readyOrders.map(order => (
-                  <div key={order.id} className="waiter-order-card ready-order">
-                    <div className="order-header">
-                      <div>
-                        <h3>Masa {order.tableNumber}</h3>
-                        <p className="order-id">Comanda #{order.id}</p>
-                        <p className="order-time">Gata la: {formatTime(order.updatedAt)}</p>
-                      </div>
-                      <div className="status-badge ready">GATA</div>
-                    </div>
-
-                    <div className="order-items-list">
-                      {order.items.map(item => (
-                        <div key={item.id} className="order-item">
-                          <span className="item-quantity">{item.quantity}x</span>
-                          <span className="item-name">{item.name}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="order-footer">
-                      <p className="order-total">Total: {(typeof order.totalPrice === 'number' ? order.totalPrice : 0).toFixed(2)} Lei</p>
-                      <button
-                        className="btn-serve"
-                        onClick={() => markAsServed(order.id)}
-                        disabled={loading}
-                      >
-                        ✓ Marchează ca Servit
-                      </button>
-                    </div>
+          {(() => {
+            const readyByTable = readyOrders.reduce((acc, order) => {
+              if (!acc[order.tableNumber]) acc[order.tableNumber] = [];
+              acc[order.tableNumber].push(order);
+              return acc;
+            }, {} as Record<number, typeof readyOrders>);
+            const tableCount = Object.keys(readyByTable).length;
+            return (
+              <>
+                <div className="waiter-stats">
+                  <div className="stat-card ready">
+                    <h3>Gata de Servit</h3>
+                    <p className="stat-number">{tableCount}</p>
                   </div>
-                ))}
-              </div>
-            )}
-          </section>
+                </div>
+
+                <section className="orders-section">
+                  <h2 className="section-title">Comenzi Gata</h2>
+                  {tableCount === 0 ? (
+                    <div className="empty-state">
+                      <p>Nu există comenzi gata de servit</p>
+                    </div>
+                  ) : (
+                    <div className="orders-grid">
+                      {Object.entries(readyByTable)
+                        .sort(([a], [b]) => Number(a) - Number(b))
+                        .map(([tableNum, tableOrders]) => {
+                          const mergedItems = tableOrders.reduce((acc, order) => {
+                            for (const item of order.items) {
+                              const existing = acc.get(item.menuItemId);
+                              if (existing) {
+                                existing.quantity += item.quantity;
+                              } else {
+                                acc.set(item.menuItemId, { ...item });
+                              }
+                            }
+                            return acc;
+                          }, new Map<number, (typeof tableOrders)[0]['items'][0]>());
+                          const total = tableOrders.reduce((sum, o) => sum + (typeof o.totalPrice === 'number' ? o.totalPrice : 0), 0);
+                          return (
+                            <div key={tableNum} className="waiter-order-card ready-order">
+                              <div className="order-header">
+                                <div>
+                                  <h3>Masa {tableNum}</h3>
+                                </div>
+                                <div className="status-badge ready">GATA</div>
+                              </div>
+                              <div className="order-items-list">
+                                {Array.from(mergedItems.values()).map(item => (
+                                  <div key={item.menuItemId} className="order-item">
+                                    <span className="item-quantity">{item.quantity}x</span>
+                                    <span className="item-name">{item.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              <div className="order-footer">
+                                <p className="order-total">Total: {total.toFixed(2)} Lei</p>
+                                <button
+                                  className="btn-serve"
+                                  onClick={() => markTableAsServed(Number(tableNum))}
+                                  disabled={loading}
+                                >
+                                  ✓ Marchează Masa ca Servită
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </section>
+              </>
+            );
+          })()}
         </>
       )}
     </div>

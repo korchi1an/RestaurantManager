@@ -73,12 +73,19 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.table-header {
-  color: #333;
-  font-size: 1.5rem;
+.table-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 2px solid #eee;
+}
+
+.table-header {
+  color: #333;
+  font-size: 1.5rem;
+  margin: 0;
 }
 
 .kitchen-order-card {
