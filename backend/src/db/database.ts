@@ -180,7 +180,7 @@ const initDb = async () => {
       DO $$
       BEGIN
         IF EXISTS (SELECT 1 FROM menu_items WHERE name = 'Bruschetta') THEN
-          TRUNCATE TABLE menu_items RESTART IDENTITY;
+          TRUNCATE TABLE order_items, menu_items RESTART IDENTITY;
         END IF;
       END $$;
     `);
