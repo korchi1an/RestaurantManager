@@ -339,10 +339,9 @@ const Waiter: React.FC = () => {
               disabled={assignedTables.length === 0}
               title={assignedTables.length === 0 ? 'No tables assigned' : undefined}
             >
-              📝 Take Order
+              📝 Ia Comanda
             </button>
           )}
-          <button className="refresh-btn" onClick={() => { loadOrders(); loadUnpaidTotals(); }}>Actualizează</button>
         </div>
       </header>
 

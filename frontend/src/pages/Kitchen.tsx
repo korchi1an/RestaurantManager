@@ -168,7 +168,6 @@ const Kitchen: React.FC = () => {
       <header className="kitchen-header">
         <h1>Panoul Bucătăriei</h1>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button className="refresh-btn" onClick={loadOrders}>Actualizează</button>
           <button
             className="refresh-btn"
             onClick={() => navigate('/assignments')}
