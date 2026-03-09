@@ -160,7 +160,7 @@ const initDb = async () => {
       )
     `);
 
-    // Migration: add UNIQUE constraint on (session_id, order_number) if not present
+    // Migration: clear order data and add UNIQUE constraint on (session_id, order_number)
     await client.query(`
       DO $$
       BEGIN
@@ -168,8 +168,19 @@ const initDb = async () => {
           SELECT 1 FROM pg_constraint
           WHERE conname = 'orders_session_id_order_number_key'
         ) THEN
+          TRUNCATE TABLE order_items, orders RESTART IDENTITY;
           ALTER TABLE orders ADD CONSTRAINT orders_session_id_order_number_key
             UNIQUE (session_id, order_number);
+        END IF;
+      END $$;
+    `);
+
+    // Migration: translate menu items to Romanian if still in English
+    await client.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (SELECT 1 FROM menu_items WHERE name = 'Bruschetta') THEN
+          TRUNCATE TABLE menu_items RESTART IDENTITY;
         END IF;
       END $$;
     `);
@@ -193,31 +204,31 @@ const initDb = async () => {
     
     if (menuCount === 0) {
       const menuItems = [
-        // Appetizers
-        ['Bruschetta', 'Appetizers', 8.99, 'Toasted bread with tomatoes, garlic, and basil'],
-        ['Calamari', 'Appetizers', 12.99, 'Crispy fried squid with marinara sauce'],
-        ['Mozzarella Sticks', 'Appetizers', 9.99, 'Golden fried mozzarella with marinara'],
-        ['Caesar Salad', 'Appetizers', 10.99, 'Fresh romaine with Caesar dressing and croutons'],
-        
-        // Main Courses
-        ['Margherita Pizza', 'Main Courses', 14.99, 'Classic tomato, mozzarella, and basil'],
-        ['Pepperoni Pizza', 'Main Courses', 16.99, 'Loaded with pepperoni and cheese'],
-        ['Spaghetti Carbonara', 'Main Courses', 15.99, 'Pasta with bacon, egg, and parmesan'],
-        ['Grilled Salmon', 'Main Courses', 22.99, 'Atlantic salmon with vegetables'],
-        ['Ribeye Steak', 'Main Courses', 28.99, 'Prime ribeye with garlic butter'],
-        ['Chicken Parmesan', 'Main Courses', 18.99, 'Breaded chicken with marinara and cheese'],
-        
-        // Desserts
-        ['Tiramisu', 'Desserts', 7.99, 'Classic Italian coffee-flavored dessert'],
-        ['Chocolate Lava Cake', 'Desserts', 8.99, 'Warm chocolate cake with molten center'],
-        ['Cheesecake', 'Desserts', 7.99, 'New York style cheesecake'],
-        
-        // Beverages
-        ['Coca Cola', 'Beverages', 2.99, 'Classic soft drink'],
-        ['Iced Tea', 'Beverages', 2.99, 'Freshly brewed iced tea'],
-        ['Coffee', 'Beverages', 3.49, 'Freshly brewed coffee'],
-        ['Red Wine', 'Beverages', 8.99, 'House red wine'],
-        ['White Wine', 'Beverages', 8.99, 'House white wine']
+        // Aperitive
+        ['Bruschetta', 'Aperitive', 8.99, 'Pâine prăjită cu roșii, usturoi și busuioc'],
+        ['Calamari', 'Aperitive', 12.99, 'Calamar prăjit crocant cu sos marinara'],
+        ['Bețișoare de Mozzarella', 'Aperitive', 9.99, 'Mozzarella prăjită aurie cu sos marinara'],
+        ['Salată Caesar', 'Aperitive', 10.99, 'Romaine proaspăt cu sos Caesar și crutoane'],
+
+        // Feluri Principale
+        ['Pizza Margherita', 'Feluri Principale', 14.99, 'Sos de roșii clasic, mozzarella și busuioc'],
+        ['Pizza Pepperoni', 'Feluri Principale', 16.99, 'Bogată în pepperoni și brânză'],
+        ['Spaghetti Carbonara', 'Feluri Principale', 15.99, 'Paste cu bacon, ou și parmezan'],
+        ['Somon la Grătar', 'Feluri Principale', 22.99, 'Somon atlantic cu legume'],
+        ['Ribeye la Grătar', 'Feluri Principale', 28.99, 'Ribeye premium cu unt cu usturoi'],
+        ['Pui Parmezan', 'Feluri Principale', 18.99, 'Pui pane cu sos marinara și brânză'],
+
+        // Deserturi
+        ['Tiramisu', 'Deserturi', 7.99, 'Desert clasic italian cu aromă de cafea'],
+        ['Tort de Ciocolată', 'Deserturi', 8.99, 'Tort de ciocolată cald cu centru topit'],
+        ['Cheesecake', 'Deserturi', 7.99, 'Cheesecake în stil New York'],
+
+        // Băuturi
+        ['Coca Cola', 'Băuturi', 2.99, 'Băutură răcoritoare clasică'],
+        ['Ceai cu Gheață', 'Băuturi', 2.99, 'Ceai preparat proaspăt cu gheață'],
+        ['Cafea', 'Băuturi', 3.49, 'Cafea proaspăt preparată'],
+        ['Vin Roșu', 'Băuturi', 8.99, 'Vin roșu de casă'],
+        ['Vin Alb', 'Băuturi', 8.99, 'Vin alb de casă']
       ];
 
       for (const item of menuItems) {
