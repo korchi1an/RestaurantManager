@@ -19,7 +19,6 @@ const Customer: React.FC = () => {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionOrders, setSessionOrders] = useState<OrderWithItems[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isQrMode, setIsQrMode] = useState<boolean>(!!tableId);
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('');
   const [isPaid, setIsPaid] = useState<boolean>(false);
@@ -46,8 +45,6 @@ const Customer: React.FC = () => {
         try {
           const tableNum = parseInt(tableId);
           setTableNumber(tableNum);
-          setIsQrMode(true);
-          
           // Reuse existing session if still active, otherwise create a new one
           const storedSession = sessionService.getStoredSession();
           if (storedSession && storedSession.tableNumber === tableNum) {
@@ -189,24 +186,6 @@ const Customer: React.FC = () => {
 
 
 
-  const handleTableChange = async (newTableNumber: number) => {
-    try {
-      // End previous session if exists
-      if (sessionId) {
-        await sessionService.endSession(sessionId);
-      }
-
-      // Create new session for new table
-      const session = await sessionService.createSession(newTableNumber);
-      setSessionId(session.sessionId);
-      setTableNumber(newTableNumber);
-      clearCart();
-      setSessionOrders([]);
-    } catch (error) {
-      alert('Failed to switch table');
-    }
-  };
-
   const submitOrder = async () => {
     if (cart.length === 0) {
       alert('Cart is empty!');
@@ -305,43 +284,23 @@ const Customer: React.FC = () => {
     <div className="customer-container">
       <header className="customer-header">
         <div className="header-actions">
-          <div className="table-selector">
-            {isQrMode ? (
-              <div className="table-info">
-                <strong>Masa {tableNumber}</strong>
-              </div>
-            ) : (
-              <>
-                <label>Numărul Mesei: </label>
-                <select value={tableNumber} onChange={(e) => handleTableChange(Number(e.target.value))}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                    <option key={num} value={num}>Masa {num}</option>
-                  ))}
-                </select>
-              </>
-            )}
-          </div>
-          <button 
-            className="call-waiter-btn" 
+          <button
+            className="call-waiter-btn"
             onClick={callWaiter}
             title="Call your waiter"
           >
             🔔 Ospătar
           </button>
-          <div className="auth-section">
-              {isLoggedIn ? (
-                <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
-              ) : (
-                <div className="auth-buttons">
-                  <button
-                    className="login-btn"
-                    onClick={() => navigate('/customer-login', { state: { tableId } })}
-                  >
-                    Login
-                  </button>
-                </div>
-              )}
-          </div>
+          {isLoggedIn ? (
+            <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
+          ) : (
+            <button
+              className="login-btn"
+              onClick={() => navigate('/customer-login', { state: { tableId } })}
+            >
+              Login
+            </button>
+          )}
         </div>
       </header>
 
