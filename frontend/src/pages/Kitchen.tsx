@@ -221,7 +221,7 @@ const Kitchen: React.FC = () => {
                       Începe Prepararea
                     </button>
                   )}
-                  {tableOrders.some(o => o.status === 'Pending' || o.status === 'Preparing') && (
+                  {!tableOrders.some(o => o.status === 'Pending') && tableOrders.some(o => o.status === 'Preparing') && (
                     <button
                       className="btn-ready"
                       onClick={() => markTableAsReady(Number(tableNum))}
