@@ -172,12 +172,7 @@ const Customer: React.FC = () => {
         api.getMenu(),
         api.getCategories()
       ]);
-      // Convert price strings to numbers (PostgreSQL returns DECIMAL as string)
-      const itemsWithNumberPrices = items.map(item => ({
-        ...item,
-        price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
-      }));
-      setMenuItems(itemsWithNumberPrices);
+      setMenuItems(items);
       setCategories(['Toate', ...cats]);
     } catch (error) {
       alert('Failed to load menu. Please refresh the page.');

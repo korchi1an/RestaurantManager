@@ -9,7 +9,11 @@ const router = Router();
 router.get('/', async (req: Request, res: Response) => {
   try {
     const result = await pool.query('SELECT * FROM menu_items ORDER BY category, name');
-    res.json(result.rows);
+    const items = result.rows.map((item: any) => ({
+      ...item,
+      price: parseFloat(item.price)
+    }));
+    res.json(items);
   } catch (error) {
     logger.error('MENU - Error fetching menu items', { error });
     res.status(500).json({ error: 'Failed to fetch menu items' });
