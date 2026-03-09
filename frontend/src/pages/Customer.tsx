@@ -14,7 +14,7 @@ const Customer: React.FC = () => {
   const navigate = useNavigate();
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Toate');
   const [tableNumber, setTableNumber] = useState<number>(tableId ? parseInt(tableId) : 1);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [sessionOrders, setSessionOrders] = useState<OrderWithItems[]>([]);
@@ -181,7 +181,7 @@ const Customer: React.FC = () => {
         price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
       }));
       setMenuItems(itemsWithNumberPrices);
-      setCategories(['All', ...cats]);
+      setCategories(['Toate', ...cats]);
     } catch (error) {
       alert('Failed to load menu. Please refresh the page.');
     }
@@ -304,7 +304,6 @@ const Customer: React.FC = () => {
   return (
     <div className="customer-container">
       <header className="customer-header">
-        <h1>Meniu Restaurant</h1>
         <div className="header-actions">
           <div className="table-selector">
             {isQrMode ? (
@@ -327,24 +326,18 @@ const Customer: React.FC = () => {
             onClick={callWaiter}
             title="Call your waiter"
           >
-            🔔 Call Waiter
+            🔔 Ospătar
           </button>
           <div className="auth-section">
               {isLoggedIn ? (
                 <button className="logout-btn" onClick={handleLogout}>Deconectare</button>
               ) : (
                 <div className="auth-buttons">
-                  <button 
-                    className="login-btn" 
+                  <button
+                    className="login-btn"
                     onClick={() => navigate('/customer-login', { state: { tableId } })}
                   >
                     Login
-                  </button>
-                  <button 
-                    className="register-btn" 
-                    onClick={() => navigate('/customer-register', { state: { tableId } })}
-                  >
-                    Înregistrare
                   </button>
                 </div>
               )}

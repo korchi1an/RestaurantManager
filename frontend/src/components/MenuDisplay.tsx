@@ -16,7 +16,7 @@ const MenuDisplay: React.FC<MenuDisplayProps> = ({
   onCategoryChange,
   onAddToCart
 }) => {
-  const filteredItems = selectedCategory === 'All' 
+  const filteredItems = selectedCategory === 'Toate'
     ? menuItems 
     : menuItems.filter(item => item.category === selectedCategory);
 
