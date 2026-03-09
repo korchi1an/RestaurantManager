@@ -55,79 +55,101 @@ router.post('/waiter', authenticate, authorize('waiter', 'admin'), async (req: A
     
     // For waiter orders, store waiter ID in session_id field with 'waiter-' prefix
     const waiterSessionId = `waiter-${waiterId}`;
-    
-    // Insert order with waiter ID in session_id field
-    const orderResult = await pool.query(`
-      INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
-      VALUES (1, $1, $2, 'Pending', $3, NOW(), NOW())
-      RETURNING id
-    `, [waiterSessionId, orderData.tableNumber, totalPrice]);
-    
-    const orderId = orderResult.rows[0].id;
-    logger.info('WAITER ORDER - Order inserted', { 
-      orderId, 
-      tableNumber: orderData.tableNumber,
+
+    const client = await pool.connect();
+    let orderId: number;
+    let formattedOrder: OrderWithItems;
+
+    try {
+      await client.query('BEGIN');
+
+      // Calculate next order_number atomically within the transaction
+      const numResult = await client.query(
+        `SELECT COALESCE(MAX(order_number), 0) + 1 AS next_num FROM orders WHERE session_id = $1`,
+        [waiterSessionId]
+      );
+      const orderNumber = numResult.rows[0].next_num;
+
+      const orderResult = await client.query(`
+        INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
+        VALUES ($1, $2, $3, 'Pending', $4, NOW(), NOW())
+        RETURNING id
+      `, [orderNumber, waiterSessionId, orderData.tableNumber, totalPrice]);
+
+      orderId = orderResult.rows[0].id;
+      logger.info('WAITER ORDER - Order inserted', {
+        orderId,
+        orderNumber,
+        tableNumber: orderData.tableNumber,
+        createdByWaiter: waiterId,
+        waiterName
+      });
+
+      // Insert order items
+      for (const item of itemsWithPrices) {
+        await client.query(`
+          INSERT INTO order_items (order_id, menu_item_id, quantity, price)
+          VALUES ($1, $2, $3, $4)
+        `, [orderId, item.menuItemId, item.quantity, item.price]);
+      }
+
+      await client.query('COMMIT');
+
+      // Fetch the created order (outside transaction is fine for a read)
+      const fetchResult = await client.query(`
+        SELECT o.*,
+          json_agg(
+            json_build_object(
+              'id', oi.id,
+              'orderId', oi.order_id,
+              'menuItemId', oi.menu_item_id,
+              'quantity', oi.quantity,
+              'price', oi.price,
+              'name', mi.name,
+              'category', mi.category
+            )
+          ) FILTER (WHERE oi.id IS NOT NULL) as items
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+        WHERE o.id = $1
+        GROUP BY o.id
+      `, [orderId]);
+
+      const order = fetchResult.rows[0];
+
+      formattedOrder = {
+        id: order.id,
+        orderNumber: order.order_number,
+        sessionId: order.session_id,
+        tableNumber: order.table_number,
+        status: order.status,
+        totalPrice: parseFloat(order.total_price),
+        createdAt: order.created_at,
+        updatedAt: order.updated_at,
+        items: order.items || []
+      };
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
+    }
+
+    logger.info('WAITER ORDER - Created successfully', {
+      orderId,
+      tableNumber: formattedOrder.tableNumber,
+      status: formattedOrder.status,
       createdByWaiter: waiterId,
       waiterName
     });
-    
-    // Insert order items
-    for (const item of itemsWithPrices) {
-      await pool.query(`
-        INSERT INTO order_items (order_id, menu_item_id, quantity, price)
-        VALUES ($1, $2, $3, $4)
-      `, [orderId, item.menuItemId, item.quantity, item.price]);
-    }
-    
-    // Fetch the created order
-    const fetchResult = await pool.query(`
-      SELECT o.*, 
-        json_agg(
-          json_build_object(
-            'id', oi.id,
-            'orderId', oi.order_id,
-            'menuItemId', oi.menu_item_id,
-            'quantity', oi.quantity,
-            'price', oi.price,
-            'name', mi.name,
-            'category', mi.category
-          )
-        ) FILTER (WHERE oi.id IS NOT NULL) as items
-      FROM orders o
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE o.id = $1
-      GROUP BY o.id
-    `, [orderId]);
-    
-    const order = fetchResult.rows[0];
-    
-    const formattedOrder: OrderWithItems = {
-      id: order.id,
-      orderNumber: order.order_number,
-      sessionId: order.session_id,
-      tableNumber: order.table_number,
-      status: order.status,
-      totalPrice: parseFloat(order.total_price),
-      createdAt: order.created_at,
-      updatedAt: order.updated_at,
-      items: order.items || []
-    };
-    
-    logger.info('WAITER ORDER - Created successfully', { 
-      orderId, 
-      tableNumber: order.table_number,
-      status: order.status,
-      createdByWaiter: waiterId,
-      waiterName 
-    });
-    
+
     // Emit socket event
     if (SocketManager.isInitialized()) {
       const io = SocketManager.getIO();
       io.emit('orderCreated', formattedOrder);
     }
-    
+
     res.status(201).json(formattedOrder);
   } catch (error) {
     logger.error('WAITER ORDER - Error creating waiter-assisted order', { error, waiterId: req.user?.id });
@@ -287,72 +309,81 @@ router.post('/', async (req: Request, res: Response) => {
     // Use provided sessionId or null if not provided
     const sessionId = orderData.sessionId || null;
     logger.info('ORDER CREATE - Creating order', { sessionId, tableNumber: orderData.tableNumber, totalPrice, itemsCount: itemsWithPrices.length });
-    
-    // Calculate order number for this session
-    let orderNumber = 1;
-    if (sessionId) {
-      const lastOrderResult = await pool.query(`
-        SELECT MAX(order_number) as max_number 
-        FROM orders 
-        WHERE session_id = $1
-      `, [sessionId]);
-      orderNumber = (lastOrderResult.rows[0]?.max_number || 0) + 1;
+
+    const client = await pool.connect();
+    let formattedOrder: OrderWithItems;
+
+    try {
+      await client.query('BEGIN');
+
+      // Calculate next order_number atomically within the transaction
+      const numResult = await client.query(
+        `SELECT COALESCE(MAX(order_number), 0) + 1 AS next_num FROM orders WHERE session_id = $1`,
+        [sessionId]
+      );
+      const orderNumber = numResult.rows[0].next_num;
+
+      const orderResult = await client.query(`
+        INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
+        VALUES ($1, $2, $3, 'Pending', $4, NOW(), NOW())
+        RETURNING id
+      `, [orderNumber, sessionId, orderData.tableNumber, totalPrice]);
+
+      const orderId = orderResult.rows[0].id;
+      logger.info('ORDER CREATE - Order inserted', { orderId, orderNumber, tableNumber: orderData.tableNumber });
+
+      // Insert order items
+      for (const item of itemsWithPrices) {
+        await client.query(`
+          INSERT INTO order_items (order_id, menu_item_id, quantity, price)
+          VALUES ($1, $2, $3, $4)
+        `, [orderId, item.menuItemId, item.quantity, item.price]);
+      }
+
+      await client.query('COMMIT');
+
+      // Fetch the created order
+      const fetchResult = await client.query(`
+        SELECT o.*,
+          json_agg(
+            json_build_object(
+              'id', oi.id,
+              'orderId', oi.order_id,
+              'menuItemId', oi.menu_item_id,
+              'quantity', oi.quantity,
+              'price', oi.price,
+              'name', mi.name,
+              'category', mi.category
+            )
+          ) FILTER (WHERE oi.id IS NOT NULL) as items
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+        WHERE o.id = $1
+        GROUP BY o.id
+      `, [orderId]);
+
+      const order = fetchResult.rows[0];
+
+      formattedOrder = {
+        id: order.id,
+        orderNumber: order.order_number,
+        sessionId: order.session_id,
+        tableNumber: order.table_number,
+        status: order.status,
+        totalPrice: parseFloat(order.total_price),
+        createdAt: order.created_at,
+        updatedAt: order.updated_at,
+        items: order.items || []
+      };
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
     }
-    
-    // Insert order
-    const orderResult = await pool.query(`
-      INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
-      VALUES ($1, $2, $3, 'Pending', $4, NOW(), NOW())
-      RETURNING id
-    `, [orderNumber, sessionId, orderData.tableNumber, totalPrice]);
-    
-    const orderId = orderResult.rows[0].id;
-    logger.info('ORDER CREATE - Order inserted', { orderId, orderNumber, tableNumber: orderData.tableNumber });
-    
-    // Insert order items
-    for (const item of itemsWithPrices) {
-      await pool.query(`
-        INSERT INTO order_items (order_id, menu_item_id, quantity, price)
-        VALUES ($1, $2, $3, $4)
-      `, [orderId, item.menuItemId, item.quantity, item.price]);
-    }
-    
-    // Fetch the created order
-    const fetchResult = await pool.query(`
-      SELECT o.*, 
-        json_agg(
-          json_build_object(
-            'id', oi.id,
-            'orderId', oi.order_id,
-            'menuItemId', oi.menu_item_id,
-            'quantity', oi.quantity,
-            'price', oi.price,
-            'name', mi.name,
-            'category', mi.category
-          )
-        ) FILTER (WHERE oi.id IS NOT NULL) as items
-      FROM orders o
-      LEFT JOIN order_items oi ON o.id = oi.order_id
-      LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-      WHERE o.id = $1
-      GROUP BY o.id
-    `, [orderId]);
-    
-    const order = fetchResult.rows[0];
-    
-    const formattedOrder: OrderWithItems = {
-      id: order.id,
-      orderNumber: order.order_number,
-      sessionId: order.session_id,
-      tableNumber: order.table_number,
-      status: order.status,
-      totalPrice: parseFloat(order.total_price),
-      createdAt: order.created_at,
-      updatedAt: order.updated_at,
-      items: order.items || []
-    };
-    
-    logger.info('ORDER CREATE - Order created successfully', { orderId, tableNumber: order.table_number, status: order.status, orderNumber: order.order_number });
+
+    logger.info('ORDER CREATE - Order created successfully', { orderId: formattedOrder.id, tableNumber: formattedOrder.tableNumber, status: formattedOrder.status, orderNumber: formattedOrder.orderNumber });
     res.status(201).json(formattedOrder);
   } catch (error) {
     logger.error('ORDER CREATE - Error creating order', { error });
@@ -518,36 +549,45 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
 
 // DELETE /api/orders/:id - Cancel an order (only if Pending status)
 router.delete('/:id', async (req: Request, res: Response) => {
+  const client = await pool.connect();
   try {
     const orderId = req.params.id;
     logger.info('ORDER CANCEL - Attempting to cancel order', { orderId });
-    
-    // Check if order exists and is in Pending status
-    const orderResult = await pool.query('SELECT * FROM orders WHERE id = $1', [orderId]);
-    
-    if (orderResult.rows.length === 0) {
+
+    await client.query('BEGIN');
+
+    // Lock the row exclusively so a concurrent kitchen status update blocks until we finish
+    const lockResult = await client.query(
+      'SELECT status, table_number FROM orders WHERE id = $1 FOR UPDATE',
+      [orderId]
+    );
+
+    if (lockResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       logger.warn('ORDER CANCEL - Order not found', { orderId });
       return res.status(404).json({ error: 'Order not found' });
     }
-    
-    const order = orderResult.rows[0];
-    
+
+    const order = lockResult.rows[0];
+
     if (order.status !== 'Pending') {
+      await client.query('ROLLBACK');
       logger.warn('ORDER CANCEL - Cannot cancel non-pending order', { orderId, status: order.status });
       return res.status(400).json({ error: 'Can only cancel orders with Pending status' });
     }
-    
-    // Delete order items first
-    await pool.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
-    
-    // Delete order
-    await pool.query('DELETE FROM orders WHERE id = $1', [orderId]);
+
+    await client.query('DELETE FROM order_items WHERE order_id = $1', [orderId]);
+    await client.query('DELETE FROM orders WHERE id = $1', [orderId]);
+    await client.query('COMMIT');
+
     logger.info('ORDER CANCEL - Order cancelled successfully', { orderId, tableNumber: order.table_number });
-    
     res.json({ success: true, message: 'Order cancelled successfully', orderId: parseInt(orderId) });
   } catch (error) {
+    await client.query('ROLLBACK');
     logger.error('ORDER CANCEL - Error cancelling order', { error, orderId: req.params.id });
     res.status(500).json({ error: 'Failed to cancel order' });
+  } finally {
+    client.release();
   }
 });
 

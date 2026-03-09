@@ -48,7 +48,15 @@ const Customer: React.FC = () => {
           setTableNumber(tableNum);
           setIsQrMode(true);
           
-          // Create new session for this QR code scan
+          // Reuse existing session if still active, otherwise create a new one
+          const storedSession = sessionService.getStoredSession();
+          if (storedSession && storedSession.tableNumber === tableNum) {
+            const isActive = await sessionService.validateSession(storedSession.sessionId);
+            if (isActive) {
+              setSessionId(storedSession.sessionId);
+              return;
+            }
+          }
           const session = await sessionService.createSession(tableNum);
           setSessionId(session.sessionId);
         } catch (error) {
@@ -98,6 +106,7 @@ const Customer: React.FC = () => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId || order.sessionId !== currentSessionId) return;
       sessionService.clearStoredSession();
+      setSessionId(null);
       setIsPaid(true);
     });
 
@@ -105,6 +114,7 @@ const Customer: React.FC = () => {
       const currentSessionId = sessionIdRef.current;
       if (!currentSessionId || data.sessionId !== currentSessionId) return;
       sessionService.clearStoredSession();
+      setSessionId(null);
       setIsPaid(true);
     });
 

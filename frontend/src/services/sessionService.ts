@@ -88,6 +88,17 @@ class SessionService {
     }
   }
 
+  async validateSession(sessionId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${API_BASE}/sessions/${sessionId}`);
+      if (!response.ok) return false;
+      const data = await response.json();
+      return data.isActive === true;
+    } catch {
+      return false;
+    }
+  }
+
   clearStoredSession(): void {
     sessionStorage.removeItem('currentSession');
   }

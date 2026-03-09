@@ -160,6 +160,20 @@ const initDb = async () => {
       )
     `);
 
+    // Migration: add UNIQUE constraint on (session_id, order_number) if not present
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conname = 'orders_session_id_order_number_key'
+        ) THEN
+          ALTER TABLE orders ADD CONSTRAINT orders_session_id_order_number_key
+            UNIQUE (session_id, order_number);
+        END IF;
+      END $$;
+    `);
+
     // Order Items Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS order_items (
