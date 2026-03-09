@@ -23,7 +23,7 @@ const Waiter: React.FC = () => {
   const [isOrdering, setIsOrdering] = useState(false);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('Toate');
   const [orderTableNumber, setOrderTableNumber] = useState<number>(1);
   const [orderLoading, setOrderLoading] = useState(false);
   const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
@@ -212,7 +212,7 @@ const Waiter: React.FC = () => {
           api.getCategories()
         ]);
         setMenuItems(menuData);
-        setCategories(['All', ...categoriesData]);
+        setCategories(['Toate', ...categoriesData]);
       } catch (error) {
         alert('Failed to load menu. Please try again.');
         setIsOrdering(false);
@@ -223,7 +223,7 @@ const Waiter: React.FC = () => {
   const closeOrderForm = () => {
     setIsOrdering(false);
     clearCart();
-    setSelectedCategory('All');
+    setSelectedCategory('Toate');
   };
 
   const submitWaiterOrder = async () => {
@@ -245,7 +245,7 @@ const Waiter: React.FC = () => {
       const order = await api.post<OrderWithItems>('/orders/waiter', orderData);
       clearCart();
       setIsOrdering(false);
-      setSelectedCategory('All');
+      setSelectedCategory('Toate');
       setSuccessMessage(`Comanda #${order.id} plasată cu succes pentru Masa ${orderTableNumber}!`);
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error: any) {
