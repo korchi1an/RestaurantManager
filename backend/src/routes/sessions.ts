@@ -212,8 +212,14 @@ router.get('/:sessionId/orders', async (req: Request, res: Response) => {
     `, [sessionId]);
 
     const parsedOrders = result.rows.map((order: any) => ({
-      ...order,
-      total_price: parseFloat(order.total_price),
+      id: order.id,
+      orderNumber: order.order_number,
+      sessionId: order.session_id,
+      tableNumber: order.table_number,
+      status: order.status,
+      totalPrice: parseFloat(order.total_price),
+      createdAt: order.created_at,
+      updatedAt: order.updated_at,
       items: order.items || []
     }));
 
