@@ -80,7 +80,7 @@ app.use('/api/orders', orderLimiter, (req, res, next) => {
       // New order created
       logger.info(`Order created: ${data.id} for table ${data.tableNumber}`);
       io.emit('orderCreated', data);
-    } else if (req.method === 'PATCH' && req.path.includes('/status')) {
+    } else if (req.method === 'PATCH' && /^\/\d+\/status$/.test(req.path)) {
       // Order status updated
       logger.info(`Order ${data.id} status updated to: ${data.status}`);
       io.emit('orderUpdated', data);

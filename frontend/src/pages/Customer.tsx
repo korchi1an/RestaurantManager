@@ -232,7 +232,7 @@ const Customer: React.FC = () => {
     }
 
     try {
-      await api.cancelOrder(orderId);
+      await api.cancelOrder(orderId, sessionId!);
       
       // Remove from session orders list
       setSessionOrders(prev => prev.filter(order => order.id !== orderId));

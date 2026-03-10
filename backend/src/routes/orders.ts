@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/database';
 import { CreateOrderRequest, Order, OrderWithItems, UpdateOrderStatusRequest } from '../models/types';
-import { authenticate, authorize, AuthRequest } from '../middleware/auth';
+import { authenticate, authorize, optionalAuth, AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
 import SocketManager from '../utils/socketManager';
 
@@ -229,8 +229,8 @@ router.get('/', authenticate, authorize('kitchen', 'waiter', 'admin'), async (re
   }
 });
 
-// GET /api/orders/:id - Get a specific order
-router.get('/:id', async (req: Request, res: Response) => {
+// GET /api/orders/:id - Get a specific order (staff only)
+router.get('/:id', authenticate, authorize('kitchen', 'waiter', 'admin'), async (req: Request, res: Response) => {
   try {
     const result = await pool.query(`
       SELECT o.*, 
@@ -548,7 +548,9 @@ router.patch('/:id/status', authenticate, authorize('kitchen', 'waiter', 'admin'
 });
 
 // DELETE /api/orders/:id - Cancel an order (only if Pending status)
-router.delete('/:id', async (req: Request, res: Response) => {
+// Staff (kitchen/waiter/admin) can cancel any pending order.
+// Customers (unauthenticated) must supply the matching sessionId in the request body.
+router.delete('/:id', optionalAuth, async (req: AuthRequest, res: Response) => {
   const client = await pool.connect();
   try {
     const orderId = req.params.id;
@@ -558,7 +560,7 @@ router.delete('/:id', async (req: Request, res: Response) => {
 
     // Lock the row exclusively so a concurrent kitchen status update blocks until we finish
     const lockResult = await client.query(
-      'SELECT status, table_number FROM orders WHERE id = $1 FOR UPDATE',
+      'SELECT status, table_number, session_id FROM orders WHERE id = $1 FOR UPDATE',
       [orderId]
     );
 
@@ -569,6 +571,17 @@ router.delete('/:id', async (req: Request, res: Response) => {
     }
 
     const order = lockResult.rows[0];
+
+    // Authorization: staff can cancel any order; customers must own the session
+    const isStaff = req.user && ['kitchen', 'waiter', 'admin'].includes(req.user.role);
+    if (!isStaff) {
+      const { sessionId } = req.body;
+      if (!sessionId || sessionId !== order.session_id) {
+        await client.query('ROLLBACK');
+        logger.warn('ORDER CANCEL - Unauthorized cancel attempt', { orderId, providedSession: sessionId });
+        return res.status(403).json({ error: 'Not authorized to cancel this order' });
+      }
+    }
 
     if (order.status !== 'Pending') {
       await client.query('ROLLBACK');

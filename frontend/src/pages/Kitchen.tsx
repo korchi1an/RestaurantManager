@@ -7,7 +7,7 @@ import '../styles/Kitchen.css';
 
 const Kitchen: React.FC = () => {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingTables, setLoadingTables] = useState<Set<number>>(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -93,24 +93,24 @@ const Kitchen: React.FC = () => {
   };
 
   const markTableAsPreparing = async (tableNumber: number) => {
-    setLoading(true);
+    setLoadingTables(prev => new Set(prev).add(tableNumber));
     try {
       await api.updateTableOrdersStatus(tableNumber, 'Preparing');
     } catch (error) {
       alert('Failed to update order status');
     } finally {
-      setLoading(false);
+      setLoadingTables(prev => { const next = new Set(prev); next.delete(tableNumber); return next; });
     }
   };
 
   const markTableAsReady = async (tableNumber: number) => {
-    setLoading(true);
+    setLoadingTables(prev => new Set(prev).add(tableNumber));
     try {
       await api.updateTableOrdersStatus(tableNumber, 'Ready');
     } catch (error) {
       alert('Failed to update order status');
     } finally {
-      setLoading(false);
+      setLoadingTables(prev => { const next = new Set(prev); next.delete(tableNumber); return next; });
     }
   };
 
@@ -215,7 +215,7 @@ const Kitchen: React.FC = () => {
                     <button
                       className="btn-preparing"
                       onClick={() => markTableAsPreparing(Number(tableNum))}
-                      disabled={loading}
+                      disabled={loadingTables.has(Number(tableNum))}
                     >
                       Începe Prepararea
                     </button>
@@ -224,7 +224,7 @@ const Kitchen: React.FC = () => {
                     <button
                       className="btn-ready"
                       onClick={() => markTableAsReady(Number(tableNum))}
-                      disabled={loading}
+                      disabled={loadingTables.has(Number(tableNum))}
                     >
                       Marchează ca Gata
                     </button>

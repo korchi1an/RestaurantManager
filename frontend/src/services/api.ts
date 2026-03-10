@@ -230,9 +230,10 @@ export const api = {
     });
   },
 
-  async cancelOrder(orderId: number): Promise<{ success: boolean; message: string }> {
+  async cancelOrder(orderId: number, sessionId: string): Promise<{ success: boolean; message: string }> {
     return request<{ success: boolean; message: string }>(`/orders/${orderId}`, {
       method: 'DELETE',
+      body: JSON.stringify({ sessionId }),
     });
   },
 
