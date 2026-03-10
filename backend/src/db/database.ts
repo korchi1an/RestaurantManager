@@ -160,6 +160,20 @@ const initDb = async () => {
       )
     `);
 
+    // Migration: add client_ref column for order idempotency
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'orders' AND column_name = 'client_ref'
+        ) THEN
+          ALTER TABLE orders ADD COLUMN client_ref VARCHAR(36);
+          ALTER TABLE orders ADD CONSTRAINT orders_client_ref_key UNIQUE (client_ref);
+        END IF;
+      END $$;
+    `);
+
     // Migration: clear order data and add UNIQUE constraint on (session_id, order_number)
     await client.query(`
       DO $$

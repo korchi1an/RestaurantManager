@@ -22,6 +22,7 @@ const Customer: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>('');
   const [isPaid, setIsPaid] = useState<boolean>(false);
+  const [waiterCallCooldown, setWaiterCallCooldown] = useState<boolean>(false);
   const sessionIdRef = useRef<string | null>(null);
 
   const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
@@ -200,12 +201,13 @@ const Customer: React.FC = () => {
       const orderData = {
         sessionId: currentSessionId,
         tableNumber,
+        clientRef: crypto.randomUUID(),
         items: cart.map(item => ({
           menuItemId: item.menuItem.id,
           quantity: item.quantity
         }))
       };
-      
+
       // Customer orders go to /orders endpoint
       const order = await api.createOrder(orderData);
       
@@ -258,9 +260,11 @@ const Customer: React.FC = () => {
       const customerName = userName || 'Guest';
       await api.post(`/tables/${tableNumber}/call-waiter`, { customerName });
       alert('🔔 Waiter has been notified!');
+      setWaiterCallCooldown(true);
+      setTimeout(() => setWaiterCallCooldown(false), 30_000);
     } catch (error: any) {
       console.error('Error calling waiter:', error);
-      alert('Failed to call waiter. Please try again.');
+      alert(error.message || 'Failed to call waiter. Please try again.');
     }
   };
 
@@ -282,7 +286,8 @@ const Customer: React.FC = () => {
           <button
             className="call-waiter-btn"
             onClick={callWaiter}
-            title="Call your waiter"
+            disabled={waiterCallCooldown}
+            title={waiterCallCooldown ? 'Please wait before calling again' : 'Call your waiter'}
           >
             🔔 Ospătar
           </button>

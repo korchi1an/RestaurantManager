@@ -50,6 +50,7 @@ export interface OrderItem {
 export interface CreateOrderRequest {
   sessionId?: string | null;
   tableNumber: number;
+  clientRef?: string;
   items: {
     menuItemId: number;
     quantity: number;

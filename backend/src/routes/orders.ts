@@ -286,11 +286,16 @@ router.post('/', async (req: Request, res: Response) => {
       logger.warn('ORDER CREATE - Invalid order data, missing required fields');
       return res.status(400).json({ error: 'Invalid order data' });
     }
-    
+
+    if (!orderData.sessionId) {
+      logger.warn('ORDER CREATE - Missing sessionId');
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+
     // Calculate total price
     let totalPrice = 0;
     const itemsWithPrices = [];
-    
+
     for (const item of orderData.items) {
       const menuItemResult = await pool.query('SELECT * FROM menu_items WHERE id = $1', [item.menuItemId]);
       if (menuItemResult.rows.length === 0) {
@@ -306,15 +311,55 @@ router.post('/', async (req: Request, res: Response) => {
       });
     }
     
-    // Use provided sessionId or null if not provided
-    const sessionId = orderData.sessionId || null;
-    logger.info('ORDER CREATE - Creating order', { sessionId, tableNumber: orderData.tableNumber, totalPrice, itemsCount: itemsWithPrices.length });
+    const sessionId = orderData.sessionId;
+    const clientRef = orderData.clientRef || null;
+    logger.info('ORDER CREATE - Creating order', { sessionId, tableNumber: orderData.tableNumber, totalPrice, itemsCount: itemsWithPrices.length, clientRef });
 
     const client = await pool.connect();
     let formattedOrder: OrderWithItems;
 
     try {
       await client.query('BEGIN');
+
+      // Idempotency check: if clientRef already exists, return the existing order
+      if (clientRef) {
+        const existingResult = await client.query(
+          `SELECT o.*,
+            json_agg(
+              json_build_object(
+                'id', oi.id,
+                'orderId', oi.order_id,
+                'menuItemId', oi.menu_item_id,
+                'quantity', oi.quantity,
+                'price', oi.price,
+                'name', mi.name,
+                'category', mi.category
+              )
+            ) FILTER (WHERE oi.id IS NOT NULL) as items
+          FROM orders o
+          LEFT JOIN order_items oi ON o.id = oi.order_id
+          LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+          WHERE o.client_ref = $1
+          GROUP BY o.id`,
+          [clientRef]
+        );
+        if (existingResult.rows.length > 0) {
+          await client.query('ROLLBACK');
+          const dup = existingResult.rows[0];
+          logger.info('ORDER CREATE - Duplicate clientRef, returning existing order', { clientRef, orderId: dup.id });
+          return res.status(201).json({
+            id: dup.id,
+            orderNumber: dup.order_number,
+            sessionId: dup.session_id,
+            tableNumber: dup.table_number,
+            status: dup.status,
+            totalPrice: parseFloat(dup.total_price),
+            createdAt: dup.created_at,
+            updatedAt: dup.updated_at,
+            items: dup.items || []
+          });
+        }
+      }
 
       // Calculate next order_number atomically within the transaction
       const numResult = await client.query(
@@ -324,10 +369,10 @@ router.post('/', async (req: Request, res: Response) => {
       const orderNumber = numResult.rows[0].next_num;
 
       const orderResult = await client.query(`
-        INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
-        VALUES ($1, $2, $3, 'Pending', $4, NOW(), NOW())
+        INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at, client_ref)
+        VALUES ($1, $2, $3, 'Pending', $4, NOW(), NOW(), $5)
         RETURNING id
-      `, [orderNumber, sessionId, orderData.tableNumber, totalPrice]);
+      `, [orderNumber, sessionId, orderData.tableNumber, totalPrice, clientRef]);
 
       const orderId = orderResult.rows[0].id;
       logger.info('ORDER CREATE - Order inserted', { orderId, orderNumber, tableNumber: orderData.tableNumber });

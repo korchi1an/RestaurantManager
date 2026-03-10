@@ -8,6 +8,10 @@ import SocketManager from '../utils/socketManager';
 
 const router = Router();
 
+// In-memory cooldown: tableNumber → timestamp of last call-waiter request
+const waiterCallCooldowns = new Map<number, number>();
+const WAITER_CALL_COOLDOWN_MS = 30_000; // 30 seconds
+
 // GET /api/tables - Get all tables
 router.get('/', async (req: Request, res: Response) => {
   try {
@@ -234,6 +238,15 @@ router.post('/:tableNumber/call-waiter', async (req: Request, res: Response) => 
   try {
     const { tableNumber } = req.params;
     const { customerName } = req.body;
+
+    // Cooldown check: prevent spam (one call per table per 30s)
+    const tableNum = parseInt(tableNumber);
+    const lastCall = waiterCallCooldowns.get(tableNum);
+    if (lastCall && Date.now() - lastCall < WAITER_CALL_COOLDOWN_MS) {
+      const remaining = Math.ceil((WAITER_CALL_COOLDOWN_MS - (Date.now() - lastCall)) / 1000);
+      return res.status(429).json({ error: `Please wait ${remaining}s before calling again` });
+    }
+    waiterCallCooldowns.set(tableNum, Date.now());
 
     // Get table info and assigned waiter
     const result = await pool.query(`
