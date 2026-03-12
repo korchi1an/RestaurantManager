@@ -210,10 +210,10 @@ const Customer: React.FC = () => {
       };
 
       // Customer orders go to /orders endpoint
-      const order = await api.createOrder(orderData);
-      
+      const orders = await api.createOrder(orderData);
+
       // Add to session orders list at the top
-      setSessionOrders(prev => [order, ...prev]);
+      setSessionOrders(prev => [...orders, ...prev]);
       
       // Clear cart to allow placing another order
       clearCart();

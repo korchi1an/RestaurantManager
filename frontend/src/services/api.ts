@@ -209,11 +209,12 @@ export const api = {
     return request<OrderWithItems>(`/orders/${id}`);
   },
 
-  async createOrder(orderData: CreateOrderRequest): Promise<OrderWithItems> {
-    return request<OrderWithItems>('/orders', {
+  async createOrder(orderData: CreateOrderRequest): Promise<OrderWithItems[]> {
+    const response = await request<{ orders: OrderWithItems[] }>('/orders', {
       method: 'POST',
       body: JSON.stringify(orderData),
     });
+    return response.orders;
   },
 
   async updateOrderStatus(orderId: number, status: string): Promise<OrderWithItems> {

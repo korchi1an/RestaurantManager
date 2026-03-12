@@ -242,11 +242,12 @@ const Waiter: React.FC = () => {
         }))
       };
 
-      const order = await api.post<OrderWithItems>('/orders/waiter', orderData);
+      const { orders } = await api.post<{ orders: OrderWithItems[] }>('/orders/waiter', orderData);
       clearCart();
       setIsOrdering(false);
       setSelectedCategory('Toate');
-      setSuccessMessage(`Comanda #${order.id} plasată cu succes pentru Masa ${orderTableNumber}!`);
+      const primaryOrder = orders[0];
+      setSuccessMessage(`Comanda #${primaryOrder?.id} plasată cu succes pentru Masa ${orderTableNumber}!`);
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error: any) {
       alert('❌ Comanda a eșuat: ' + (error.message || 'Eroare necunoscută'));

@@ -1,11 +1,91 @@
 import { Router, Request, Response } from 'express';
 import { pool } from '../db/database';
-import { CreateOrderRequest, Order, OrderWithItems, UpdateOrderStatusRequest } from '../models/types';
+import { CreateOrderRequest, OrderWithItems, UpdateOrderStatusRequest } from '../models/types';
 import { authenticate, authorize, optionalAuth, AuthRequest } from '../middleware/auth';
 import logger from '../utils/logger';
 import SocketManager from '../utils/socketManager';
 
 const router = Router();
+
+// Helper: insert one order record and its items within an already-open transaction
+async function insertOrderRecord(
+  client: any,
+  sessionId: string,
+  tableNumber: number,
+  items: Array<{ menuItemId: number; quantity: number; price: any }>,
+  status: string,
+  clientRef: string | null
+): Promise<number> {
+  const totalPrice = items.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0);
+
+  const numResult = await client.query(
+    `SELECT COALESCE(MAX(order_number), 0) + 1 AS next_num FROM orders WHERE session_id = $1`,
+    [sessionId]
+  );
+  const orderNumber = numResult.rows[0].next_num;
+
+  const orderResult = clientRef
+    ? await client.query(
+        `INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at, client_ref)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW(), $6) RETURNING id`,
+        [orderNumber, sessionId, tableNumber, status, totalPrice, clientRef]
+      )
+    : await client.query(
+        `INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING id`,
+        [orderNumber, sessionId, tableNumber, status, totalPrice]
+      );
+
+  const orderId = orderResult.rows[0].id;
+
+  for (const item of items) {
+    await client.query(
+      `INSERT INTO order_items (order_id, menu_item_id, quantity, price) VALUES ($1, $2, $3, $4)`,
+      [orderId, item.menuItemId, item.quantity, item.price]
+    );
+  }
+
+  return orderId;
+}
+
+// Helper: format a raw DB order row into OrderWithItems
+function formatOrderRow(order: any): OrderWithItems {
+  return {
+    id: order.id,
+    orderNumber: order.order_number,
+    sessionId: order.session_id,
+    tableNumber: order.table_number,
+    status: order.status,
+    totalPrice: parseFloat(order.total_price),
+    createdAt: order.created_at,
+    updatedAt: order.updated_at,
+    items: order.items || []
+  };
+}
+
+// Helper: fetch a fully-joined order by ID (safe to call after COMMIT on same client)
+async function fetchFormattedOrder(client: any, orderId: number): Promise<OrderWithItems> {
+  const fetchResult = await client.query(`
+    SELECT o.*,
+      json_agg(
+        json_build_object(
+          'id', oi.id,
+          'orderId', oi.order_id,
+          'menuItemId', oi.menu_item_id,
+          'quantity', oi.quantity,
+          'price', oi.price,
+          'name', mi.name,
+          'category', mi.category
+        )
+      ) FILTER (WHERE oi.id IS NOT NULL) as items
+    FROM orders o
+    LEFT JOIN order_items oi ON o.id = oi.order_id
+    LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+    WHERE o.id = $1
+    GROUP BY o.id
+  `, [orderId]);
+  return formatOrderRow(fetchResult.rows[0]);
+}
 
 // POST /api/orders/waiter - Create order by waiter (Waiter only)
 router.post('/waiter', authenticate, authorize('waiter', 'admin'), async (req: AuthRequest, res: Response) => {
@@ -13,122 +93,55 @@ router.post('/waiter', authenticate, authorize('waiter', 'admin'), async (req: A
     const orderData: CreateOrderRequest = req.body;
     const waiterId = req.user?.id;
     const waiterName = req.user?.username;
-    
-    logger.info('WAITER ORDER - Waiter-assisted order received', { 
-      waiterId, 
-      waiterName,
-      tableNumber: orderData.tableNumber, 
-      itemsCount: orderData.items?.length 
+
+    logger.info('WAITER ORDER - Waiter-assisted order received', {
+      waiterId, waiterName, tableNumber: orderData.tableNumber, itemsCount: orderData.items?.length
     });
-    
+
     if (!orderData.tableNumber || !orderData.items || orderData.items.length === 0) {
       logger.warn('WAITER ORDER - Invalid order data, missing required fields');
       return res.status(400).json({ error: 'Invalid order data' });
     }
-    
-    // Calculate total price
-    let totalPrice = 0;
-    const itemsWithPrices = [];
-    
+
+    // Fetch menu items and capture category for routing
+    const itemsWithDetails: Array<{ menuItemId: number; quantity: number; price: any; category: string }> = [];
     for (const item of orderData.items) {
       const menuItemResult = await pool.query('SELECT * FROM menu_items WHERE id = $1', [item.menuItemId]);
       if (menuItemResult.rows.length === 0) {
         return res.status(400).json({ error: `Menu item ${item.menuItemId} not found` });
       }
       const menuItem = menuItemResult.rows[0];
-      const itemTotal = parseFloat(menuItem.price) * item.quantity;
-      totalPrice += itemTotal;
-      itemsWithPrices.push({
-        menuItemId: item.menuItemId,
-        quantity: item.quantity,
-        price: menuItem.price
-      });
+      itemsWithDetails.push({ menuItemId: item.menuItemId, quantity: item.quantity, price: menuItem.price, category: menuItem.category });
     }
-    
-    logger.info('WAITER ORDER - Creating waiter-assisted order', { 
-      waiterId,
-      waiterName,
-      tableNumber: orderData.tableNumber, 
-      totalPrice, 
-      itemsCount: itemsWithPrices.length 
-    });
-    
-    // For waiter orders, store waiter ID in session_id field with 'waiter-' prefix
-    const waiterSessionId = `waiter-${waiterId}`;
 
+    const foodItems = itemsWithDetails.filter(i => i.category !== 'Băuturi');
+    const drinkItems = itemsWithDetails.filter(i => i.category === 'Băuturi');
+
+    logger.info('WAITER ORDER - Creating waiter-assisted order', {
+      waiterId, waiterName, tableNumber: orderData.tableNumber,
+      foodItemsCount: foodItems.length, drinkItemsCount: drinkItems.length
+    });
+
+    const waiterSessionId = `waiter-${waiterId}`;
     const client = await pool.connect();
-    let orderId: number;
-    let formattedOrder: OrderWithItems;
+    const createdOrders: OrderWithItems[] = [];
+    let foodOrderId: number | null = null;
+    let drinkOrderId: number | null = null;
 
     try {
       await client.query('BEGIN');
 
-      // Calculate next order_number atomically within the transaction
-      const numResult = await client.query(
-        `SELECT COALESCE(MAX(order_number), 0) + 1 AS next_num FROM orders WHERE session_id = $1`,
-        [waiterSessionId]
-      );
-      const orderNumber = numResult.rows[0].next_num;
-
-      const orderResult = await client.query(`
-        INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at)
-        VALUES ($1, $2, $3, 'Pending', $4, NOW(), NOW())
-        RETURNING id
-      `, [orderNumber, waiterSessionId, orderData.tableNumber, totalPrice]);
-
-      orderId = orderResult.rows[0].id;
-      logger.info('WAITER ORDER - Order inserted', {
-        orderId,
-        orderNumber,
-        tableNumber: orderData.tableNumber,
-        createdByWaiter: waiterId,
-        waiterName
-      });
-
-      // Insert order items
-      for (const item of itemsWithPrices) {
-        await client.query(`
-          INSERT INTO order_items (order_id, menu_item_id, quantity, price)
-          VALUES ($1, $2, $3, $4)
-        `, [orderId, item.menuItemId, item.quantity, item.price]);
+      if (foodItems.length > 0) {
+        foodOrderId = await insertOrderRecord(client, waiterSessionId, orderData.tableNumber, foodItems, 'Pending', null);
+      }
+      if (drinkItems.length > 0) {
+        drinkOrderId = await insertOrderRecord(client, waiterSessionId, orderData.tableNumber, drinkItems, 'Ready', null);
       }
 
       await client.query('COMMIT');
 
-      // Fetch the created order (outside transaction is fine for a read)
-      const fetchResult = await client.query(`
-        SELECT o.*,
-          json_agg(
-            json_build_object(
-              'id', oi.id,
-              'orderId', oi.order_id,
-              'menuItemId', oi.menu_item_id,
-              'quantity', oi.quantity,
-              'price', oi.price,
-              'name', mi.name,
-              'category', mi.category
-            )
-          ) FILTER (WHERE oi.id IS NOT NULL) as items
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-        WHERE o.id = $1
-        GROUP BY o.id
-      `, [orderId]);
-
-      const order = fetchResult.rows[0];
-
-      formattedOrder = {
-        id: order.id,
-        orderNumber: order.order_number,
-        sessionId: order.session_id,
-        tableNumber: order.table_number,
-        status: order.status,
-        totalPrice: parseFloat(order.total_price),
-        createdAt: order.created_at,
-        updatedAt: order.updated_at,
-        items: order.items || []
-      };
+      if (foodOrderId !== null) createdOrders.push(await fetchFormattedOrder(client, foodOrderId));
+      if (drinkOrderId !== null) createdOrders.push(await fetchFormattedOrder(client, drinkOrderId));
     } catch (txError) {
       await client.query('ROLLBACK');
       throw txError;
@@ -136,21 +149,19 @@ router.post('/waiter', authenticate, authorize('waiter', 'admin'), async (req: A
       client.release();
     }
 
-    logger.info('WAITER ORDER - Created successfully', {
-      orderId,
-      tableNumber: formattedOrder.tableNumber,
-      status: formattedOrder.status,
-      createdByWaiter: waiterId,
-      waiterName
-    });
-
-    // Emit socket event
     if (SocketManager.isInitialized()) {
       const io = SocketManager.getIO();
-      io.emit('orderCreated', formattedOrder);
+      for (const order of createdOrders) {
+        if (order.status === 'Pending') io.emit('orderCreated', order);
+        else if (order.status === 'Ready') io.emit('orderReady', order);
+      }
     }
 
-    res.status(201).json(formattedOrder);
+    logger.info('WAITER ORDER - Created successfully', {
+      ordersCreated: createdOrders.length, tableNumber: orderData.tableNumber, waiterId, waiterName
+    });
+
+    res.status(201).json({ orders: createdOrders });
   } catch (error) {
     logger.error('WAITER ORDER - Error creating waiter-assisted order', { error, waiterId: req.user?.id });
     res.status(500).json({ error: 'Failed to create order' });
@@ -281,7 +292,7 @@ router.post('/', async (req: Request, res: Response) => {
   try {
     const orderData: CreateOrderRequest = req.body;
     logger.info('ORDER CREATE - Received order request', { tableNumber: orderData.tableNumber, itemsCount: orderData.items?.length });
-    
+
     if (!orderData.tableNumber || !orderData.items || orderData.items.length === 0) {
       logger.warn('ORDER CREATE - Invalid order data, missing required fields');
       return res.status(400).json({ error: 'Invalid order data' });
@@ -292,135 +303,73 @@ router.post('/', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'sessionId is required' });
     }
 
-    // Calculate total price
-    let totalPrice = 0;
-    const itemsWithPrices = [];
-
+    // Fetch menu items and capture category for routing
+    const itemsWithDetails: Array<{ menuItemId: number; quantity: number; price: any; category: string }> = [];
     for (const item of orderData.items) {
       const menuItemResult = await pool.query('SELECT * FROM menu_items WHERE id = $1', [item.menuItemId]);
       if (menuItemResult.rows.length === 0) {
         return res.status(400).json({ error: `Menu item ${item.menuItemId} not found` });
       }
       const menuItem = menuItemResult.rows[0];
-      const itemTotal = parseFloat(menuItem.price) * item.quantity;
-      totalPrice += itemTotal;
-      itemsWithPrices.push({
-        menuItemId: item.menuItemId,
-        quantity: item.quantity,
-        price: menuItem.price
-      });
+      itemsWithDetails.push({ menuItemId: item.menuItemId, quantity: item.quantity, price: menuItem.price, category: menuItem.category });
     }
-    
+
+    const foodItems = itemsWithDetails.filter(i => i.category !== 'Băuturi');
+    const drinkItems = itemsWithDetails.filter(i => i.category === 'Băuturi');
+
     const sessionId = orderData.sessionId;
     const clientRef = orderData.clientRef || null;
-    logger.info('ORDER CREATE - Creating order', { sessionId, tableNumber: orderData.tableNumber, totalPrice, itemsCount: itemsWithPrices.length, clientRef });
+    const drinkClientRef = clientRef ? clientRef + '-drinks' : null;
 
-    const client = await pool.connect();
-    let formattedOrder: OrderWithItems;
+    logger.info('ORDER CREATE - Creating order', {
+      sessionId, tableNumber: orderData.tableNumber,
+      foodItemsCount: foodItems.length, drinkItemsCount: drinkItems.length, clientRef
+    });
 
-    try {
-      await client.query('BEGIN');
-
-      // Idempotency check: if clientRef already exists, return the existing order
-      if (clientRef) {
-        const existingResult = await client.query(
-          `SELECT o.*,
-            json_agg(
-              json_build_object(
-                'id', oi.id,
-                'orderId', oi.order_id,
-                'menuItemId', oi.menu_item_id,
-                'quantity', oi.quantity,
-                'price', oi.price,
-                'name', mi.name,
-                'category', mi.category
-              )
-            ) FILTER (WHERE oi.id IS NOT NULL) as items
-          FROM orders o
-          LEFT JOIN order_items oi ON o.id = oi.order_id
-          LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-          WHERE o.client_ref = $1
-          GROUP BY o.id`,
-          [clientRef]
-        );
-        if (existingResult.rows.length > 0) {
-          await client.query('ROLLBACK');
-          const dup = existingResult.rows[0];
-          logger.info('ORDER CREATE - Duplicate clientRef, returning existing order', { clientRef, orderId: dup.id });
-          return res.status(201).json({
-            id: dup.id,
-            orderNumber: dup.order_number,
-            sessionId: dup.session_id,
-            tableNumber: dup.table_number,
-            status: dup.status,
-            totalPrice: parseFloat(dup.total_price),
-            createdAt: dup.created_at,
-            updatedAt: dup.updated_at,
-            items: dup.items || []
-          });
-        }
-      }
-
-      // Calculate next order_number atomically within the transaction
-      const numResult = await client.query(
-        `SELECT COALESCE(MAX(order_number), 0) + 1 AS next_num FROM orders WHERE session_id = $1`,
-        [sessionId]
-      );
-      const orderNumber = numResult.rows[0].next_num;
-
-      const orderResult = await client.query(`
-        INSERT INTO orders (order_number, session_id, table_number, status, total_price, created_at, updated_at, client_ref)
-        VALUES ($1, $2, $3, 'Pending', $4, NOW(), NOW(), $5)
-        RETURNING id
-      `, [orderNumber, sessionId, orderData.tableNumber, totalPrice, clientRef]);
-
-      const orderId = orderResult.rows[0].id;
-      logger.info('ORDER CREATE - Order inserted', { orderId, orderNumber, tableNumber: orderData.tableNumber });
-
-      // Insert order items
-      for (const item of itemsWithPrices) {
-        await client.query(`
-          INSERT INTO order_items (order_id, menu_item_id, quantity, price)
-          VALUES ($1, $2, $3, $4)
-        `, [orderId, item.menuItemId, item.quantity, item.price]);
-      }
-
-      await client.query('COMMIT');
-
-      // Fetch the created order
-      const fetchResult = await client.query(`
+    // Idempotency check: if clientRef already exists, return the existing orders
+    if (clientRef) {
+      const idempotencyQuery = `
         SELECT o.*,
           json_agg(
             json_build_object(
-              'id', oi.id,
-              'orderId', oi.order_id,
-              'menuItemId', oi.menu_item_id,
-              'quantity', oi.quantity,
-              'price', oi.price,
-              'name', mi.name,
-              'category', mi.category
+              'id', oi.id, 'orderId', oi.order_id, 'menuItemId', oi.menu_item_id,
+              'quantity', oi.quantity, 'price', oi.price, 'name', mi.name, 'category', mi.category
             )
           ) FILTER (WHERE oi.id IS NOT NULL) as items
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
         LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-        WHERE o.id = $1
-        GROUP BY o.id
-      `, [orderId]);
+        WHERE o.client_ref = $1
+        GROUP BY o.id`;
+      const existingFood = await pool.query(idempotencyQuery, [clientRef]);
+      const existingDrink = drinkClientRef ? await pool.query(idempotencyQuery, [drinkClientRef]) : { rows: [] as any[] };
 
-      const order = fetchResult.rows[0];
+      if (existingFood.rows.length > 0 || existingDrink.rows.length > 0) {
+        const existingOrders = [...existingFood.rows, ...existingDrink.rows].map(formatOrderRow);
+        logger.info('ORDER CREATE - Duplicate clientRef, returning existing orders', { clientRef, count: existingOrders.length });
+        return res.status(201).json({ orders: existingOrders });
+      }
+    }
 
-      formattedOrder = {
-        id: order.id,
-        orderNumber: order.order_number,
-        sessionId: order.session_id,
-        tableNumber: order.table_number,
-        status: order.status,
-        totalPrice: parseFloat(order.total_price),
-        createdAt: order.created_at,
-        updatedAt: order.updated_at,
-        items: order.items || []
-      };
+    const client = await pool.connect();
+    const createdOrders: OrderWithItems[] = [];
+    let foodOrderId: number | null = null;
+    let drinkOrderId: number | null = null;
+
+    try {
+      await client.query('BEGIN');
+
+      if (foodItems.length > 0) {
+        foodOrderId = await insertOrderRecord(client, sessionId, orderData.tableNumber, foodItems, 'Pending', clientRef);
+      }
+      if (drinkItems.length > 0) {
+        drinkOrderId = await insertOrderRecord(client, sessionId, orderData.tableNumber, drinkItems, 'Ready', drinkClientRef);
+      }
+
+      await client.query('COMMIT');
+
+      if (foodOrderId !== null) createdOrders.push(await fetchFormattedOrder(client, foodOrderId));
+      if (drinkOrderId !== null) createdOrders.push(await fetchFormattedOrder(client, drinkOrderId));
     } catch (txError) {
       await client.query('ROLLBACK');
       throw txError;
@@ -428,8 +377,16 @@ router.post('/', async (req: Request, res: Response) => {
       client.release();
     }
 
-    logger.info('ORDER CREATE - Order created successfully', { orderId: formattedOrder.id, tableNumber: formattedOrder.tableNumber, status: formattedOrder.status, orderNumber: formattedOrder.orderNumber });
-    res.status(201).json(formattedOrder);
+    if (SocketManager.isInitialized()) {
+      const io = SocketManager.getIO();
+      for (const order of createdOrders) {
+        if (order.status === 'Pending') io.emit('orderCreated', order);
+        else if (order.status === 'Ready') io.emit('orderReady', order);
+      }
+    }
+
+    logger.info('ORDER CREATE - Orders created successfully', { ordersCreated: createdOrders.length, tableNumber: orderData.tableNumber });
+    res.status(201).json({ orders: createdOrders });
   } catch (error) {
     logger.error('ORDER CREATE - Error creating order', { error });
     res.status(500).json({ error: 'Failed to create order' });

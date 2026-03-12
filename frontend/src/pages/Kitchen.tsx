@@ -68,7 +68,9 @@ const Kitchen: React.FC = () => {
         }))
       }));
       const activeOrders = ordersWithNumbers.filter(order =>
-        order.status !== 'Served' && order.status !== 'Paid'
+        order.status !== 'Served' &&
+        order.status !== 'Paid' &&
+        !order.items.every((item: any) => item.category === 'Băuturi')
       );
       setOrders(activeOrders);
     } catch (error) {
