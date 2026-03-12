@@ -23,6 +23,7 @@ const Customer: React.FC = () => {
   const [userName, setUserName] = useState<string>('');
   const [isPaid, setIsPaid] = useState<boolean>(false);
   const [waiterCallCooldown, setWaiterCallCooldown] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const sessionIdRef = useRef<string | null>(null);
 
   const { cart, addToCart, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
@@ -217,7 +218,8 @@ const Customer: React.FC = () => {
       // Clear cart to allow placing another order
       clearCart();
       
-      alert('✅ Order placed successfully!');
+      setSuccessMessage('Comanda a fost plasata. Va multumim!');
+      setTimeout(() => setSuccessMessage(null), 5000);
       
       // Keep session active for additional orders
     } catch (error: any) {
@@ -274,13 +276,16 @@ const Customer: React.FC = () => {
                     justifyContent: 'center', height: '100vh', textAlign: 'center', gap: '16px' }}>
         <div style={{ fontSize: '64px' }}>✅</div>
         <h1 style={{ margin: 0 }}>Mulțumim!</h1>
-        <p style={{ margin: 0, fontSize: '18px' }}>Comanda a fost plătită. Vă așteptăm cu drag!</p>
+        <p style={{ margin: 0, fontSize: '18px' }}>Comanda a fost plătită. Vă mai așteptăm cu drag!</p>
       </div>
     );
   }
 
   return (
     <div className="customer-container">
+      {successMessage && (
+        <div className="order-success-toast">{successMessage}</div>
+      )}
       <header className="customer-header">
         <div className="header-actions">
           <button
