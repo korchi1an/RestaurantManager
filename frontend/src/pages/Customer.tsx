@@ -361,7 +361,7 @@ const Customer: React.FC = () => {
 
       <div className="customer-content">
         <div className="cart-section">
-          <h2>Coșul Meu</h2>
+          <h2>Comanda mea</h2>
           <CartDisplay
             cart={cart}
             onRemove={removeFromCart}

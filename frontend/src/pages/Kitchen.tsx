@@ -7,7 +7,7 @@ import '../styles/Kitchen.css';
 
 const Kitchen: React.FC = () => {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
-  const [loadingTables, setLoadingTables] = useState<Set<number>>(new Set());
+  const [loadingOrders, setLoadingOrders] = useState<Set<number>>(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -94,25 +94,14 @@ const Kitchen: React.FC = () => {
     oscillator.stop(audioContext.currentTime + 0.2);
   };
 
-  const markTableAsPreparing = async (tableNumber: number) => {
-    setLoadingTables(prev => new Set(prev).add(tableNumber));
+  const markOrderAs = async (orderId: number, status: 'Preparing' | 'Ready') => {
+    setLoadingOrders(prev => new Set(prev).add(orderId));
     try {
-      await api.updateTableOrdersStatus(tableNumber, 'Preparing');
-    } catch (error) {
+      await api.updateOrderStatus(orderId, status);
+    } catch {
       alert('Failed to update order status');
     } finally {
-      setLoadingTables(prev => { const next = new Set(prev); next.delete(tableNumber); return next; });
-    }
-  };
-
-  const markTableAsReady = async (tableNumber: number) => {
-    setLoadingTables(prev => new Set(prev).add(tableNumber));
-    try {
-      await api.updateTableOrdersStatus(tableNumber, 'Ready');
-    } catch (error) {
-      alert('Failed to update order status');
-    } finally {
-      setLoadingTables(prev => { const next = new Set(prev); next.delete(tableNumber); return next; });
+      setLoadingOrders(prev => { const next = new Set(prev); next.delete(orderId); return next; });
     }
   };
 
@@ -141,22 +130,6 @@ const Kitchen: React.FC = () => {
     acc[order.tableNumber].push(order);
     return acc;
   }, {} as Record<number, OrderWithItems[]>);
-
-  // Merge items from all orders for a table, summing quantities for the same menuItemId
-  const getMergedItems = (tableOrders: OrderWithItems[]) => {
-    const itemMap = new Map<number, { menuItemId: number; name: string; quantity: number }>();
-    for (const order of tableOrders) {
-      for (const item of order.items) {
-        const existing = itemMap.get(item.menuItemId);
-        if (existing) {
-          existing.quantity += item.quantity;
-        } else {
-          itemMap.set(item.menuItemId, { menuItemId: item.menuItemId, name: item.name, quantity: item.quantity });
-        }
-      }
-    }
-    return Array.from(itemMap.values());
-  };
 
   // Derive a single status for a table: worst-case (Pending > Preparing > Ready)
   const getTableStatus = (tableOrders: OrderWithItems[]) => {
@@ -200,11 +173,18 @@ const Kitchen: React.FC = () => {
           .sort(([a], [b]) => Number(a) - Number(b))
           .map(([tableNum, tableOrders]) => {
             const tableStatus = getTableStatus(tableOrders);
-            const mergedItems = getMergedItems(tableOrders);
+            const sortedWaves = [...tableOrders].sort(
+              (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+            );
             return (
               <div key={tableNum} className="table-orders">
                 <div className="table-header-row">
-                  <h2 className="table-header">Masa {tableNum}</h2>
+                  <div>
+                    <h2 className="table-header">Masa {tableNum}</h2>
+                    <p className="wave-count">
+                      {tableOrders.length} {tableOrders.length === 1 ? 'comandă' : 'comenzi'}
+                    </p>
+                  </div>
                   <div
                     className="order-status-badge"
                     style={{ backgroundColor: getStatusColor(tableStatus) }}
@@ -212,36 +192,65 @@ const Kitchen: React.FC = () => {
                     {getStatusLabel(tableStatus)}
                   </div>
                 </div>
-                <div className="table-actions">
-                  {tableOrders.some(o => o.status === 'Pending') && (
-                    <button
-                      className="btn-preparing"
-                      onClick={() => markTableAsPreparing(Number(tableNum))}
-                      disabled={loadingTables.has(Number(tableNum))}
+
+                {sortedWaves.map((order, index) => {
+                  const isNew = order.status === 'Pending' && index === sortedWaves.length - 1 && sortedWaves.length > 1;
+                  return (
+                    <div
+                      key={order.id}
+                      className="kitchen-order-card"
+                      style={{ borderLeftColor: getStatusColor(order.status) }}
                     >
-                      Începe Prepararea
-                    </button>
-                  )}
-                  {!tableOrders.some(o => o.status === 'Pending') && tableOrders.some(o => o.status === 'Preparing') && (
-                    <button
-                      className="btn-ready"
-                      onClick={() => markTableAsReady(Number(tableNum))}
-                      disabled={loadingTables.has(Number(tableNum))}
-                    >
-                      Marchează ca Gata
-                    </button>
-                  )}
-                </div>
-                <div className="kitchen-order-card">
-                  <div className="order-items-list">
-                    {mergedItems.map(item => (
-                      <div key={item.menuItemId} className="kitchen-order-item">
-                        <span className="item-quantity">{item.quantity}x</span>
-                        <span className="item-name">{item.name}</span>
+                      <div className="order-header">
+                        <div>
+                          <h3>
+                            Comanda #{order.orderNumber}
+                            {isNew && <span className="wave-new-badge"> ⚡ NOU</span>}
+                          </h3>
+                          <p className="order-time">
+                            {new Date(order.createdAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                        <div
+                          className="order-status-badge"
+                          style={{ backgroundColor: getStatusColor(order.status) }}
+                        >
+                          {getStatusLabel(order.status)}
+                        </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
+
+                      <div className="order-items-list">
+                        {order.items.map(item => (
+                          <div key={item.menuItemId} className="kitchen-order-item">
+                            <span className="item-quantity">{item.quantity}x</span>
+                            <span className="item-name">{item.name}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="wave-actions">
+                        {order.status === 'Pending' && (
+                          <button
+                            className="btn-preparing"
+                            disabled={loadingOrders.has(order.id)}
+                            onClick={() => markOrderAs(order.id, 'Preparing')}
+                          >
+                            Începe Prepararea
+                          </button>
+                        )}
+                        {order.status === 'Preparing' && (
+                          <button
+                            className="btn-ready"
+                            disabled={loadingOrders.has(order.id)}
+                            onClick={() => markOrderAs(order.id, 'Ready')}
+                          >
+                            Marchează ca Gata
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
