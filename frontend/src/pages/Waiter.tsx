@@ -283,6 +283,7 @@ const Waiter: React.FC = () => {
     setLoading(true);
     try {
       await api.updateTableOrdersStatus(tableNumber, 'Served');
+      setReadyOrders(prev => prev.filter(o => o.tableNumber !== tableNumber));
     } catch (error) {
       console.error('Error marking table as served:', error);
       alert('Nu s-a putut marca masa ca servită');

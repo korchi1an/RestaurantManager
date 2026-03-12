@@ -8,6 +8,7 @@ import '../styles/Kitchen.css';
 const Kitchen: React.FC = () => {
   const [orders, setOrders] = useState<OrderWithItems[]>([]);
   const [loadingOrders, setLoadingOrders] = useState<Set<number>>(new Set());
+  const [loadingTables, setLoadingTables] = useState<Set<number>>(new Set());
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -105,6 +106,17 @@ const Kitchen: React.FC = () => {
     }
   };
 
+  const markTableAs = async (tableNumber: number, status: 'Preparing' | 'Ready') => {
+    setLoadingTables(prev => new Set(prev).add(tableNumber));
+    try {
+      await api.updateTableOrdersStatus(tableNumber, status);
+    } catch {
+      alert('Failed to update order status');
+    } finally {
+      setLoadingTables(prev => { const next = new Set(prev); next.delete(tableNumber); return next; });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Pending': return '#ffa500';
@@ -193,64 +205,133 @@ const Kitchen: React.FC = () => {
                   </div>
                 </div>
 
-                {sortedWaves.map((order, index) => {
-                  const isNew = order.status === 'Pending' && index === sortedWaves.length - 1 && sortedWaves.length > 1;
-                  return (
-                    <div
-                      key={order.id}
-                      className="kitchen-order-card"
-                      style={{ borderLeftColor: getStatusColor(order.status) }}
-                    >
-                      <div className="order-header">
-                        <div>
-                          <h3>
-                            Comanda #{order.orderNumber}
-                            {isNew && <span className="wave-new-badge"> ⚡ NOU</span>}
-                          </h3>
-                          <p className="order-time">
-                            {new Date(order.createdAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
-                          </p>
-                        </div>
-                        <div
-                          className="order-status-badge"
-                          style={{ backgroundColor: getStatusColor(order.status) }}
-                        >
-                          {getStatusLabel(order.status)}
-                        </div>
-                      </div>
+                {(() => {
+                  const allSameStatus = sortedWaves.every(w => w.status === sortedWaves[0].status);
 
-                      <div className="order-items-list">
-                        {order.items.map(item => (
-                          <div key={item.menuItemId} className="kitchen-order-item">
-                            <span className="item-quantity">{item.quantity}x</span>
-                            <span className="item-name">{item.name}</span>
+                  if (allSameStatus && sortedWaves.length > 1) {
+                    // Merged card — all waves share the same status
+                    const mergedItems = sortedWaves.flatMap(w => w.items).reduce((map, item) => {
+                      const ex = map.get(item.menuItemId);
+                      if (ex) ex.quantity += item.quantity;
+                      else map.set(item.menuItemId, { ...item });
+                      return map;
+                    }, new Map<number, typeof sortedWaves[0]['items'][0]>());
+
+                    return (
+                      <div
+                        className="kitchen-order-card"
+                        style={{ borderLeftColor: getStatusColor(sortedWaves[0].status) }}
+                      >
+                        <div className="order-header">
+                          <div>
+                            <h3>{tableOrders.length} comenzi</h3>
+                            <p className="order-time">
+                              {new Date(sortedWaves[0].createdAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                              {' → '}
+                              {new Date(sortedWaves[sortedWaves.length - 1].createdAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
                           </div>
-                        ))}
-                      </div>
+                          <div
+                            className="order-status-badge"
+                            style={{ backgroundColor: getStatusColor(sortedWaves[0].status) }}
+                          >
+                            {getStatusLabel(sortedWaves[0].status)}
+                          </div>
+                        </div>
 
-                      <div className="wave-actions">
-                        {order.status === 'Pending' && (
-                          <button
-                            className="btn-preparing"
-                            disabled={loadingOrders.has(order.id)}
-                            onClick={() => markOrderAs(order.id, 'Preparing')}
-                          >
-                            Începe Prepararea
-                          </button>
-                        )}
-                        {order.status === 'Preparing' && (
-                          <button
-                            className="btn-ready"
-                            disabled={loadingOrders.has(order.id)}
-                            onClick={() => markOrderAs(order.id, 'Ready')}
-                          >
-                            Marchează ca Gata
-                          </button>
-                        )}
+                        <div className="order-items-list">
+                          {Array.from(mergedItems.values()).map(item => (
+                            <div key={item.menuItemId} className="kitchen-order-item">
+                              <span className="item-quantity">{item.quantity}x</span>
+                              <span className="item-name">{item.name}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="wave-actions">
+                          {sortedWaves[0].status === 'Pending' && (
+                            <button
+                              className="btn-preparing"
+                              disabled={loadingTables.has(Number(tableNum))}
+                              onClick={() => markTableAs(Number(tableNum), 'Preparing')}
+                            >
+                              Începe Prepararea
+                            </button>
+                          )}
+                          {sortedWaves[0].status === 'Preparing' && (
+                            <button
+                              className="btn-ready"
+                              disabled={loadingTables.has(Number(tableNum))}
+                              onClick={() => markTableAs(Number(tableNum), 'Ready')}
+                            >
+                              Marchează ca Gata
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
+                    );
+                  }
+
+                  // Per-wave sub-cards — mixed statuses
+                  return sortedWaves.map((order, index) => {
+                    const isNew = order.status === 'Pending' && index === sortedWaves.length - 1 && sortedWaves.length > 1;
+                    return (
+                      <div
+                        key={order.id}
+                        className="kitchen-order-card"
+                        style={{ borderLeftColor: getStatusColor(order.status) }}
+                      >
+                        <div className="order-header">
+                          <div>
+                            <h3>
+                              Comanda #{order.orderNumber}
+                              {isNew && <span className="wave-new-badge"> ⚡ NOU</span>}
+                            </h3>
+                            <p className="order-time">
+                              {new Date(order.createdAt).toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          <div
+                            className="order-status-badge"
+                            style={{ backgroundColor: getStatusColor(order.status) }}
+                          >
+                            {getStatusLabel(order.status)}
+                          </div>
+                        </div>
+
+                        <div className="order-items-list">
+                          {order.items.map(item => (
+                            <div key={item.menuItemId} className="kitchen-order-item">
+                              <span className="item-quantity">{item.quantity}x</span>
+                              <span className="item-name">{item.name}</span>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="wave-actions">
+                          {order.status === 'Pending' && (
+                            <button
+                              className="btn-preparing"
+                              disabled={loadingOrders.has(order.id)}
+                              onClick={() => markOrderAs(order.id, 'Preparing')}
+                            >
+                              Începe Prepararea
+                            </button>
+                          )}
+                          {order.status === 'Preparing' && (
+                            <button
+                              className="btn-ready"
+                              disabled={loadingOrders.has(order.id)}
+                              onClick={() => markOrderAs(order.id, 'Ready')}
+                            >
+                              Marchează ca Gata
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             );
           })}
