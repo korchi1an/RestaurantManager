@@ -319,7 +319,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     const sessionId = orderData.sessionId;
     const clientRef = orderData.clientRef || null;
-    const drinkClientRef = clientRef ? clientRef + '-drinks' : null;
+    const drinkClientRef = null; // Drink orders use null — client_ref column is VARCHAR(36), UUID-only
 
     logger.info('ORDER CREATE - Creating order', {
       sessionId, tableNumber: orderData.tableNumber,
@@ -342,10 +342,9 @@ router.post('/', async (req: Request, res: Response) => {
         WHERE o.client_ref = $1
         GROUP BY o.id`;
       const existingFood = await pool.query(idempotencyQuery, [clientRef]);
-      const existingDrink = drinkClientRef ? await pool.query(idempotencyQuery, [drinkClientRef]) : { rows: [] as any[] };
 
-      if (existingFood.rows.length > 0 || existingDrink.rows.length > 0) {
-        const existingOrders = [...existingFood.rows, ...existingDrink.rows].map(formatOrderRow);
+      if (existingFood.rows.length > 0) {
+        const existingOrders = existingFood.rows.map(formatOrderRow);
         logger.info('ORDER CREATE - Duplicate clientRef, returning existing orders', { clientRef, count: existingOrders.length });
         return res.status(201).json({ orders: existingOrders });
       }
