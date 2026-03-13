@@ -360,8 +360,8 @@ const Waiter: React.FC = () => {
           {waiterCalls.map((call, index) => (
             <div key={`${call.tableNumber}-${call.timestamp}`} className="waiter-call-alert">
               <div className="alert-content">
-                🔔 <strong>Table {call.tableNumber} is calling!</strong>
-                <span>Customer: {call.customerName}</span>
+                🔔 <strong>Masa {call.tableNumber} necesita asistenta!</strong>
+                <span>Client: {call.customerName}</span>
                 <button onClick={() => setWaiterCalls(prev => prev.filter((_, i) => i !== index))}>✕</button>
               </div>
             </div>

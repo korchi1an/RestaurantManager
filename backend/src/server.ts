@@ -222,7 +222,7 @@ if (process.env.NODE_ENV !== 'test') {
           
           if (result.rows.length > 0) {
             logger.info(`🧹 Closed ${result.rows.length} paid sessions:`, 
-              result.rows.map(s => `Table ${s.table_number} (${s.customer_name || 'Guest'})`).join(', ')
+              result.rows.map(s => `Masa ${s.table_number} (${s.customer_name || 'Oaspete'})`).join(', ')
             );
           }
         } catch (error) {
