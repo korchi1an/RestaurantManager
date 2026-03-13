@@ -40,7 +40,7 @@ export default function Register() {
         navigate('/');
       }
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+      setError(err.message || 'Înregistrarea a eșuat. Încearcă din nou.');
     } finally {
       setLoading(false);
     }
@@ -49,19 +49,19 @@ export default function Register() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Create Account</h1>
-        <p style={styles.subtitle}>Register to track your orders</p>
+        <h1 style={styles.title}>Creează Cont</h1>
+        <p style={styles.subtitle}>Înregistrează-te pentru a urmări comenzile</p>
         
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.fieldGroup}>
-            <label htmlFor="fullName" style={styles.label}>Full Name</label>
+            <label htmlFor="fullName" style={styles.label}>Nume Complet</label>
             <input
               type="text"
               id="fullName"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               style={styles.input}
-              placeholder="Enter your full name"
+              placeholder="Introdu numele complet"
               required
               autoFocus
             />
@@ -75,20 +75,20 @@ export default function Register() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={styles.input}
-              placeholder="your@email.com"
+              placeholder="email@tau.com"
               required
             />
           </div>
 
           <div style={styles.fieldGroup}>
-            <label htmlFor="password" style={styles.label}>Password</label>
+            <label htmlFor="password" style={styles.label}>Parolă</label>
             <input
               type="password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
-              placeholder="Choose a password (min 6 characters)"
+              placeholder="Alege o parolă (min. 6 caractere)"
               required
               minLength={6}
             />
@@ -108,25 +108,25 @@ export default function Register() {
             }}
             disabled={loading}
           >
-            {loading ? 'Creating Account...' : 'Register'}
+            {loading ? 'Se creează contul...' : 'Înregistrare'}
           </button>
         </form>
 
         <div style={styles.footer}>
           <p style={styles.footerText}>
-            Already have an account?{' '}
-            <button 
+            Ai deja un cont?{' '}
+            <button
               onClick={() => navigate('/customer-login', { state: { tableId } })}
               style={styles.linkButton}
             >
-              Login
+              Autentifică-te
             </button>
           </p>
           <button 
             onClick={() => tableId ? navigate(`/table/${tableId}`) : navigate('/')} 
             style={styles.backButton}
           >
-            Back to Menu
+            Înapoi la Meniu
           </button>
         </div>
       </div>

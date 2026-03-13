@@ -38,7 +38,7 @@ export default function CustomerLogin() {
         navigate('/');
       }
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || 'Autentificare eșuată. Verifică datele și încearcă din nou.');
     } finally {
       setLoading(false);
     }
@@ -47,8 +47,8 @@ export default function CustomerLogin() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Customer Login</h1>
-        <p style={styles.subtitle}>Access your orders and account</p>
+        <h1 style={styles.title}>Autentificare Client</h1>
+        <p style={styles.subtitle}>Accesează comenzile și contul tău</p>
         
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.fieldGroup}>
@@ -59,21 +59,21 @@ export default function CustomerLogin() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={styles.input}
-              placeholder="your@email.com"
+              placeholder="email@tau.com"
               required
               autoFocus
             />
           </div>
 
           <div style={styles.fieldGroup}>
-            <label htmlFor="password" style={styles.label}>Password</label>
+            <label htmlFor="password" style={styles.label}>Parolă</label>
             <input
               type="password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
-              placeholder="Enter your password"
+              placeholder="Introdu parola"
               required
             />
           </div>
@@ -92,25 +92,25 @@ export default function CustomerLogin() {
             }}
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Se conectează...' : 'Autentificare'}
           </button>
         </form>
 
         <div style={styles.footer}>
           <p style={styles.footerText}>
-            Don't have an account?{' '}
-            <button 
+            Nu ai un cont?{' '}
+            <button
               onClick={() => navigate('/customer-register', { state: { tableId } })}
               style={styles.linkButton}
             >
-              Register
+              Înregistrează-te
             </button>
           </p>
           <button 
             onClick={() => tableId ? navigate(`/table/${tableId}`) : navigate('/')} 
             style={styles.backButton}
           >
-            Back to Menu
+            Înapoi la Meniu
           </button>
         </div>
       </div>

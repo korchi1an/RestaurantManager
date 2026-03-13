@@ -36,7 +36,7 @@ const Customer: React.FC = () => {
 
     if (token && role === 'customer') {
       setIsLoggedIn(true);
-      setUserName(name || 'Customer');
+      setUserName(name || 'Client');
     }
     
     loadMenu();
@@ -177,7 +177,7 @@ const Customer: React.FC = () => {
       setMenuItems(items);
       setCategories(['Toate', ...cats]);
     } catch (error) {
-      alert('Failed to load menu. Please refresh the page.');
+      alert('Meniul nu a putut fi încărcat. Reîmprospătează pagina.');
     }
   };
 
@@ -185,7 +185,7 @@ const Customer: React.FC = () => {
 
   const submitOrder = async () => {
     if (cart.length === 0) {
-      alert('Cart is empty!');
+      alert('Coșul este gol!');
       return;
     }
 
@@ -224,7 +224,7 @@ const Customer: React.FC = () => {
       // Keep session active for additional orders
     } catch (error: any) {
       const errorMessage = error.response?.data?.error || error.message || 'Failed to submit order';
-      alert('❌ Order failed: ' + errorMessage);
+      alert('❌ Comanda a eșuat: ' + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -259,14 +259,15 @@ const Customer: React.FC = () => {
 
   const callWaiter = async () => {
     try {
-      const customerName = userName || 'Guest';
+      const customerName = userName || 'Oaspete';
       await api.post(`/tables/${tableNumber}/call-waiter`, { customerName });
-      alert('🔔 Waiter has been notified!');
+      setSuccessMessage('🔔 Ospătarul a fost apelat!');
+      setTimeout(() => setSuccessMessage(null), 5000);
       setWaiterCallCooldown(true);
       setTimeout(() => setWaiterCallCooldown(false), 30_000);
     } catch (error: any) {
       console.error('Error calling waiter:', error);
-      alert(error.message || 'Failed to call waiter. Please try again.');
+      alert(error.message || 'Ospătarul nu a putut fi apelat. Încearcă din nou.');
     }
   };
 
@@ -292,7 +293,7 @@ const Customer: React.FC = () => {
             className="call-waiter-btn"
             onClick={callWaiter}
             disabled={waiterCallCooldown}
-            title={waiterCallCooldown ? 'Please wait before calling again' : 'Call your waiter'}
+            title={waiterCallCooldown ? 'Așteaptă înainte de a apela din nou' : 'Cheamă ospătarul'}
           >
             🔔 Ospătar
           </button>
@@ -303,7 +304,7 @@ const Customer: React.FC = () => {
               className="login-btn"
               onClick={() => navigate('/customer-login', { state: { tableId } })}
             >
-              Login
+              Autentificare
             </button>
           )}
         </div>

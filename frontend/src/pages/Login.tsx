@@ -36,7 +36,7 @@ export default function Login() {
         navigate('/kitchen'); // Default to kitchen for admin
       }
     } catch (err: any) {
-      setError(err.message || 'Login failed. Please check your credentials.');
+      setError(err.message || 'Autentificare eșuată. Verifică datele și încearcă din nou.');
     } finally {
       setLoading(false);
     }
@@ -45,33 +45,33 @@ export default function Login() {
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Staff Login</h1>
-        <p style={styles.subtitle}>Kitchen & Waiter Access</p>
+        <h1 style={styles.title}>Autentificare Personal</h1>
+        <p style={styles.subtitle}>Acces Bucătărie & Chelner</p>
         
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.fieldGroup}>
-            <label htmlFor="username" style={styles.label}>Username</label>
+            <label htmlFor="username" style={styles.label}>Utilizator</label>
             <input
               type="text"
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               style={styles.input}
-              placeholder="Enter your username"
+              placeholder="Introdu utilizatorul"
               required
               autoFocus
             />
           </div>
 
           <div style={styles.fieldGroup}>
-            <label htmlFor="password" style={styles.label}>Password</label>
+            <label htmlFor="password" style={styles.label}>Parolă</label>
             <input
               type="password"
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               style={styles.input}
-              placeholder="Enter your password"
+              placeholder="Introdu parola"
               required
             />
           </div>
@@ -90,7 +90,7 @@ export default function Login() {
             }}
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Se conectează...' : 'Autentificare'}
           </button>
         </form>
 
@@ -99,7 +99,7 @@ export default function Login() {
             onClick={() => navigate('/')} 
             style={styles.backButton}
           >
-            Back to Home
+            Înapoi la Pagina Principală
           </button>
         </div>
       </div>

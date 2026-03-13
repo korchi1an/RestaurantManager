@@ -38,7 +38,7 @@ const TableAssignments: React.FC = () => {
       setWaiters(waitersData);
     } catch (error) {
       console.error('Error loading data:', error);
-      alert('Failed to load table assignments');
+      alert('Alocările meselor nu au putut fi încărcate');
     }
   };
 
@@ -49,7 +49,7 @@ const TableAssignments: React.FC = () => {
       await loadData();
     } catch (error) {
       console.error('Error assigning table:', error);
-      alert('Failed to assign table');
+      alert('Masa nu a putut fi alocată');
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,7 @@ const TableAssignments: React.FC = () => {
       await loadData();
     } catch (error) {
       console.error('Error unassigning table:', error);
-      alert('Failed to unassign table');
+      alert('Masa nu a putut fi dealocată');
     } finally {
       setLoading(false);
     }

@@ -40,7 +40,7 @@ const Waiter: React.FC = () => {
     // Check for success message from order placement
     const state = location.state as { orderSuccess?: boolean; message?: string };
     if (state?.orderSuccess) {
-      setSuccessMessage(state.message || 'Order placed successfully!');
+      setSuccessMessage(state.message || 'Comanda plasată cu succes!');
       setTimeout(() => setSuccessMessage(''), 3000);
       // Clear the state
       navigate(location.pathname, { replace: true, state: {} });
@@ -214,7 +214,7 @@ const Waiter: React.FC = () => {
         setMenuItems(menuData);
         setCategories(['Toate', ...categoriesData]);
       } catch (error) {
-        alert('Failed to load menu. Please try again.');
+        alert('Meniul nu a putut fi încărcat. Încearcă din nou.');
         setIsOrdering(false);
       }
     }
@@ -339,7 +339,7 @@ const Waiter: React.FC = () => {
               className="take-order-btn"
               onClick={openOrderForm}
               disabled={assignedTables.length === 0}
-              title={assignedTables.length === 0 ? 'No tables assigned' : undefined}
+              title={assignedTables.length === 0 ? 'Nicio masă alocată' : undefined}
             >
               📝 Ia Comanda
             </button>

@@ -75,7 +75,7 @@ const Kitchen: React.FC = () => {
       );
       setOrders(activeOrders);
     } catch (error) {
-      alert('Failed to load orders. Please refresh the page.');
+      alert('Comenzile nu au putut fi încărcate. Reîmprospătează pagina.');
     }
   };
 
@@ -100,7 +100,7 @@ const Kitchen: React.FC = () => {
     try {
       await api.updateOrderStatus(orderId, status);
     } catch {
-      alert('Failed to update order status');
+      alert('Statusul comenzii nu a putut fi actualizat');
     } finally {
       setLoadingOrders(prev => { const next = new Set(prev); next.delete(orderId); return next; });
     }
@@ -111,7 +111,7 @@ const Kitchen: React.FC = () => {
     try {
       await api.updateTableOrdersStatus(tableNumber, status);
     } catch {
-      alert('Failed to update order status');
+      alert('Statusul comenzii nu a putut fi actualizat');
     } finally {
       setLoadingTables(prev => { const next = new Set(prev); next.delete(tableNumber); return next; });
     }
