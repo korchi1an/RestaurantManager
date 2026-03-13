@@ -152,77 +152,81 @@ router.post('/:tableNumber/mark-paid', authenticate, authorize('waiter', 'kitche
       RETURNING id, session_id
     `, [tableNumber]);
 
-    // Fetch full order details with items and emit socket events
     if (result.rows.length > 0) {
       const orderIds = result.rows.map((row: any) => row.id);
       logger.info('TABLES - Orders marked as paid', { tableNumber, orderIds });
 
-      // Fetch full order details for socket events
-      for (const { id } of result.rows) {
-        const orderResult = await pool.query(`
-          SELECT o.*,
-            json_agg(
-              json_build_object(
-                'id', oi.id,
-                'orderId', oi.order_id,
-                'menuItemId', oi.menu_item_id,
-                'quantity', oi.quantity,
-                'price', oi.price,
-                'name', mi.name,
-                'category', mi.category
-              )
-            ) FILTER (WHERE oi.id IS NOT NULL) as items
-          FROM orders o
-          LEFT JOIN order_items oi ON o.id = oi.order_id
-          LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
-          WHERE o.id = $1
-          GROUP BY o.id
-        `, [id]);
+      // Secondary ops (socket events + session deactivation) are fire-and-forget.
+      // Failures here must not cause a 500 — the payment already committed.
+      try {
+        for (const { id } of result.rows) {
+          const orderResult = await pool.query(`
+            SELECT o.*,
+              json_agg(
+                json_build_object(
+                  'id', oi.id,
+                  'orderId', oi.order_id,
+                  'menuItemId', oi.menu_item_id,
+                  'quantity', oi.quantity,
+                  'price', oi.price,
+                  'name', mi.name,
+                  'category', mi.category
+                )
+              ) FILTER (WHERE oi.id IS NOT NULL) as items
+            FROM orders o
+            LEFT JOIN order_items oi ON o.id = oi.order_id
+            LEFT JOIN menu_items mi ON oi.menu_item_id = mi.id
+            WHERE o.id = $1
+            GROUP BY o.id
+          `, [id]);
 
-        if (orderResult.rows.length > 0) {
-          const order = orderResult.rows[0];
+          if (orderResult.rows.length > 0) {
+            const order = orderResult.rows[0];
 
-          // Emit socket events if SocketManager is initialized
+            if (SocketManager.isInitialized()) {
+              const io = SocketManager.getIO();
+              const formattedOrder = {
+                id: order.id,
+                orderNumber: order.order_number,
+                sessionId: order.session_id,
+                tableNumber: order.table_number,
+                status: order.status,
+                totalPrice: parseFloat(order.total_price),
+                createdAt: order.created_at,
+                updatedAt: order.updated_at,
+                items: order.items || []
+              };
+              io.emit('orderUpdated', formattedOrder);
+              io.emit('orderPaid', formattedOrder);
+            }
+          }
+        }
+
+        // Immediately deactivate the session
+        const sessionIds = [...new Set(result.rows.map((r: any) => r.session_id).filter(Boolean))];
+        if (sessionIds.length > 0) {
+          await pool.query(
+            `UPDATE sessions SET is_active = FALSE WHERE id = ANY($1::uuid[])`,
+            [sessionIds]
+          );
+          logger.info('TABLES - Sessions deactivated on payment', { tableNumber, sessionIds });
+
           if (SocketManager.isInitialized()) {
             const io = SocketManager.getIO();
-            // Convert raw PostgreSQL row (snake_case) to camelCase for frontend
-            const formattedOrder = {
-              id: order.id,
-              orderNumber: order.order_number,
-              sessionId: order.session_id,
-              tableNumber: order.table_number,
-              status: order.status,
-              totalPrice: parseFloat(order.total_price),
-              createdAt: order.created_at,
-              updatedAt: order.updated_at,
-              items: order.items || []
-            };
-            io.emit('orderUpdated', formattedOrder);
-            io.emit('orderPaid', formattedOrder);
+            for (const sid of sessionIds) {
+              io.emit('sessionEnded', { sessionId: sid, tableNumber: parseInt(tableNumber) });
+            }
           }
         }
-      }
-
-      // Immediately deactivate the session — don't wait for the 10-minute cleanup loop
-      const sessionIds = [...new Set(result.rows.map((r: any) => r.session_id).filter(Boolean))];
-      if (sessionIds.length > 0) {
-        await pool.query(
-          `UPDATE sessions SET is_active = FALSE WHERE id = ANY($1::uuid[])`,
-          [sessionIds]
-        );
-        logger.info('TABLES - Sessions deactivated on payment', { tableNumber, sessionIds });
-
-        if (SocketManager.isInitialized()) {
-          const io = SocketManager.getIO();
-          for (const sid of sessionIds) {
-            io.emit('sessionEnded', { sessionId: sid, tableNumber: parseInt(tableNumber) });
-          }
-        }
+      } catch (afterError) {
+        logger.error('TABLES - Post-payment side effects failed (payment itself succeeded)', {
+          error: afterError, tableNumber
+        });
       }
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       ordersPaid: result.rowCount,
       message: `Marcate ${result.rowCount} comenzi ca plătite`,
       orderIds: result.rows.map(row => row.id)
